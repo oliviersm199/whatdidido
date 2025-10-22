@@ -19,31 +19,42 @@ from config import get_config
 from models.work_item import WorkItem
 
 WORK_ITEM_SUMMARY_PROMPT = """
-You are an expert at summarizing technical work items into concise, clear summaries.
-Given the following work item, generate a concise summary in 3-4 sentences, focusing on the key aspects and outcomes.
-DO NOT include any personal opinions or extraneous information. DO NOT INVENT ANY DETAILS OUTSIDE OF THE PROVIDED DATA.
+You are helping a software engineer prepare for their performance review by summarizing their work.
+
+Given the work item below, create a 3-4 sentence summary that:
+- Highlights the technical problem solved or feature delivered
+- Notes the impact or outcome (e.g., improved performance, enabled new capability, fixed critical bug)
+- Mentions any collaboration, leadership, or technical complexity involved
+- Uses active voice focused on what the engineer accomplished
 
 Work Item Data:
 {work_item_data}
 
-Provide only the summary text, no additional formatting or preamble.
+Write only the summary - no preamble, bullet points, or additional commentary.
 """
 
 OVERALL_SUMMARY_PROMPT = """
-You are an expert at synthesizing multiple technical work item summaries into a coherent overall summary.
-Given the following aggregated summaries of work items, generate a clear and well-structured overall summary in markdown format that captures the main themes and outcomes.
+You are helping a software engineer craft their performance review self-evaluation.
 
-The summary should:
-- Start with a high-level overview of the work completed
-- Group related work items into logical categories
-- Highlight key achievements and outcomes
-- Be formatted in markdown with appropriate headers and bullet points
-- Focus on the key aspects and avoid unnecessary details
+Using the work item summaries below, create a cohesive narrative in markdown that:
+
+**Structure:**
+- Begin with a brief overview highlighting 2-3 major themes or accomplishments
+- Group related work into 4-6 meaningful categories (e.g., "Infrastructure & Performance", "Feature Development", "Technical Leadership", "Bug Fixes & Maintenance")
+- Within each category, synthesize the work rather than listing items individually
+- End with a brief reflection on growth areas or skills demonstrated
+
+**Content guidelines:**
+- Emphasize impact and outcomes over tasks
+- Highlight technical complexity, leadership, or collaboration where evident
+- Use specific metrics or outcomes when mentioned in the summaries
+- Maintain a professional but confident tone appropriate for self-evaluation
+- Keep each category concise (3-5 sentences)
 
 Work Item Summaries:
 {summaries}
 
-Provide the complete markdown summary, ready to be saved to a file.
+Generate the complete markdown summary.
 """
 
 SUMMARY_FILE = "whatdidido-summary.json"
