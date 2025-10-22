@@ -17,9 +17,16 @@ class GithubConfig(BaseModel):
     github_token: str
 
 
+class OpenRouterConfig(BaseModel):
+    openrouter_api_key: str
+    openrouter_workitem_summary_model: str = "anthropic/claude-haiku-4.5"
+    openrouter_summary_model: str = "anthropic/claude-sonnet-4.5"
+
+
 class Config(BaseModel):
     jira: JiraConfig
     github: GithubConfig
+    openrouter: OpenRouterConfig
 
 
 CONFIG_DIR = Path.home() / ".whatdididoagain"
@@ -40,7 +47,17 @@ def get_config() -> Config:
         jira_api_key=os.getenv("JIRA_API_KEY", ""),
     )
     github_config = GithubConfig(github_token=os.getenv("GITHUB_TOKEN", ""))
-    return Config(jira=jira_config, github=github_config)
+
+    openrouter_config = OpenRouterConfig(
+        openrouter_api_key=os.getenv("OPENROUTER_API_KEY", ""),
+        openrouter_workitem_summary_model=os.getenv(
+            "OPENROUTER_WORKITEM_SUMMARY_MODEL", "anthropic/claude-haiku-4.5"
+        ),
+        openrouter_summary_model=os.getenv(
+            "OPENROUTER_OVERALL_SUMMARY_MODEL", "anthropic/claude-sonnet-4.5"
+        ),
+    )
+    return Config(jira=jira_config, github=github_config, openrouter=openrouter_config)
 
 
 def update_config(key: str, value: str):

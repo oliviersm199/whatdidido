@@ -1,26 +1,37 @@
 from abc import ABC, abstractmethod
-from typing import List
+from datetime import datetime
+from typing import Generator
 
 from models.work_item import WorkItem
 
 
 class BaseProvider(ABC):
     @abstractmethod
-    async def fetch_items(self, start_date, end_date) -> List[WorkItem]:
-        pass
-
-    @abstractmethod
-    def authenticate(self):
-        pass
+    def get_name(self) -> str:
+        """
+        Get the name of the provider.
+        """
 
     @abstractmethod
     def is_configured(self) -> bool:
-        pass
+        """
+        Check if the provider is configured, i.e. all necessary settings are in place to run sync.
+        """
 
     @abstractmethod
     def setup(self):
-        pass
+        """
+        Implement setup logic for the provider
+        """
 
     @abstractmethod
-    def get_name(self) -> str:
+    def authenticate(self):
+        """
+        Validate connection with provider by using a simple API call.
+        """
+
+    @abstractmethod
+    def fetch_items(
+        self, start_date: datetime.date, end_date: datetime.date
+    ) -> Generator[WorkItem, None, None]:
         pass
