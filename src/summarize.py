@@ -263,7 +263,6 @@ class OverallSummarizer:
             overall = OverallSummarizer()
             markdown = overall.generate_and_save_summary(summaries)
         """
-        print("Generating overall summary...", file=sys.stderr)
         markdown_summary = self._generate_overall_summary(summaries)
 
         # Save to file
