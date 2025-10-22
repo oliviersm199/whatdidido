@@ -2,10 +2,9 @@ import click
 import questionary
 
 from providers import get_provider
-from providers.github import GithubProvider
 from providers.jira import JiraProvider
 
-registered_integrations = [JiraProvider, GithubProvider]
+registered_integrations = [JiraProvider]
 
 
 @click.group()
