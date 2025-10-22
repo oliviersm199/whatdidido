@@ -22,7 +22,7 @@ from jira.exceptions import JIRAError
 # Add src to path so we can import config
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from config import get_config
+from config import get_config  # noqa: E402
 
 
 def parse_comments(comment_string: str) -> list[str]:
@@ -192,7 +192,7 @@ def create_jira_issue(
         return new_issue.key
 
     except JIRAError as e:
-        click.echo(f" FAILED", err=True)
+        click.echo(" FAILED", err=True)
         click.echo(f"  Error: {e}", err=True)
         return None
 

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import date
 from typing import Generator
 
 from models.work_item import WorkItem
@@ -32,6 +32,6 @@ class BaseProvider(ABC):
 
     @abstractmethod
     def fetch_items(
-        self, start_date: datetime.date, end_date: datetime.date
+        self, start_date: date, end_date: date
     ) -> Generator[WorkItem, None, None]:
         pass

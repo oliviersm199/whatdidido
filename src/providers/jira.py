@@ -1,4 +1,5 @@
-from typing import Generator
+from datetime import date
+from typing import Generator, TypedDict
 
 import click
 import jira
@@ -7,6 +8,13 @@ import questionary
 from config import get_config, update_config
 from models.work_item import WorkItem
 from providers.base import BaseProvider
+
+
+class CommentData(TypedDict):
+    count: int
+    last_comment_at: str | None
+    last_comment_author: str | None
+    comments: list[dict[str, str | dict | None]]
 
 
 class JiraProvider(BaseProvider):
@@ -53,14 +61,14 @@ class JiraProvider(BaseProvider):
             return False
 
     def fetch_items(
-        self, start_date: str | None, end_date: str | None
+        self, start_date: date, end_date: date
     ) -> Generator[WorkItem, None, None]:
         """
         Fetch Jira issues updated within the date range.
 
         Args:
-            start_date: Start date in YYYY-MM-DD format (optional)
-            end_date: End date in YYYY-MM-DD format (optional)
+            start_date: Start date
+            end_date: End date
 
         Yields:
             WorkItem objects with comprehensive Jira data
@@ -72,20 +80,18 @@ class JiraProvider(BaseProvider):
         # Build JQL query
         jql_parts = []
 
-        if start_date or end_date:
-            if start_date and end_date:
-                jql_parts.append(
-                    f'updated >= "{start_date}" AND updated <= "{end_date}"'
-                )
-            elif start_date:
-                jql_parts.append(f'updated >= "{start_date}"')
-            elif end_date:
-                jql_parts.append(f'updated <= "{end_date}"')
+        # Convert dates to strings for JQL query
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str = end_date.strftime("%Y-%m-%d")
+
+        jql_parts.append(
+            f'updated >= "{start_date_str}" AND updated <= "{end_date_str}"'
+        )
 
         # Get issues assigned to current user or where user is reporter
         # You can customize this query based on your needs
         jql_parts.append(
-            f"(assignee = currentUser() OR reporter = currentUser()) ORDER BY updated DESC"
+            "(assignee = currentUser() OR reporter = currentUser()) ORDER BY updated DESC"
         )
 
         jql_query = " AND ".join(jql_parts)
@@ -229,7 +235,12 @@ class JiraProvider(BaseProvider):
             }
 
         # Comments
-        comments_data = {"count": 0, "last_comment_at": None, "comments": []}
+        comments_data: CommentData = {
+            "count": 0,
+            "last_comment_at": None,
+            "last_comment_author": None,
+            "comments": [],
+        }
         if hasattr(fields, "comment") and fields.comment:
             raw_comments = safe_get(fields.comment, "comments", [])
             comments_data["count"] = len(raw_comments)

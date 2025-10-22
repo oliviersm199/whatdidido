@@ -1,8 +1,8 @@
 import click
 import questionary
+from persist import DataStore
 
 from config import get_config
-from persist import DataStore
 from providers import get_provider
 from providers.jira import JiraProvider
 from summarize import OverallSummarizer, WorkItemSummarizer
@@ -66,10 +66,10 @@ def sync(start_date: str | None, end_date: str | None):
             err=True,
         )
         return
-
-    click.echo(
-        f"Starting synchronization for data sources: {', '.join([integration().get_name() for integration in authenticated_integrations])}..."
+    joined_integrations = ", ".join(
+        [integration().get_name() for integration in authenticated_integrations]
     )
+    click.echo(f"Starting synchronization for data sources: {joined_integrations}...")
 
     data_store = DataStore()
 

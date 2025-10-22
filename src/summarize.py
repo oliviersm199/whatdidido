@@ -40,7 +40,8 @@ Using the work item summaries below, create a cohesive narrative in markdown tha
 
 **Structure:**
 - Begin with a brief overview highlighting 2-3 major themes or accomplishments
-- Group related work into 4-6 meaningful categories (e.g., "Infrastructure & Performance", "Feature Development", "Technical Leadership", "Bug Fixes & Maintenance")
+- Group related work into 4-6 meaningful categories (e.g., "Infrastructure & Performance",
+"Feature Development", "Technical Leadership", "Bug Fixes & Maintenance")
 - Within each category, synthesize the work rather than listing items individually
 - End with a brief reflection on growth areas or skills demonstrated
 

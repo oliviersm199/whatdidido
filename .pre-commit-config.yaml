@@ -23,5 +23,6 @@ repos:
     rev: v1.18.2
     hooks:
       - id: mypy
+        language_version: python3.13
         additional_dependencies: [types-requests]
-        args: [--ignore-missing-imports]
+        args: [--ignore-missing-imports, --python-version=3.13]
