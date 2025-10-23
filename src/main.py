@@ -3,14 +3,19 @@ from datetime import date, datetime, timedelta
 import click
 import questionary
 
-from config import get_config, update_config
+from config import get_config
 from persist import DataStore
 from providers import get_provider
 from providers.jira import JiraProvider
 from providers.linear import LinearProvider
+from service_integrations.openai import OpenAIServiceIntegration
 from summarize import OverallSummarizer, WorkItemSummarizer
 
+# Data source integrations (for syncing work items)
 registered_integrations = [JiraProvider, LinearProvider]
+
+# Service integrations (for AI, notifications, etc.)
+registered_service_integrations = [OpenAIServiceIntegration]
 
 
 @click.group()
@@ -24,52 +29,53 @@ def init():
     """
     Guided step by step instructions on how to setup repository
     """
+    # Step 1: Setup data source integrations
     available_integrations = [integration for integration in registered_integrations]
     provider_question = questionary.checkbox(
-        "Which provider would you like to connect?",
+        "Which data sources would you like to connect?",
         choices=[integration().get_name() for integration in available_integrations],
     )
     selected_integrations = provider_question.ask()
 
-    click.echo("Starting setup for selected integrations...")
+    click.echo("Starting setup for selected data sources...")
 
     for integration in selected_integrations:
         click.echo(f"Setting up {integration}...")
         provider = get_provider(integration)
         provider.setup()
-        click.echo(f"{integration} setup complete!")
 
-    click.echo("All selected integrations have been set up.")
-
-    # Setup OpenAI configuration
-    click.echo("\nSetting up OpenAI-compatible API configuration...")
-    click.echo(
-        "This is used for generating summaries. Compatible with OpenAI, OpenRouter, or any OpenAI-compatible API."
+    # Step 2: Setup service integrations (AI, notifications, etc.)
+    available_services = [service for service in registered_service_integrations]
+    service_question = questionary.checkbox(
+        "\nWhich service integrations would you like to configure?",
+        choices=[service().get_name() for service in available_services],
     )
+    selected_services = service_question.ask()
 
-    api_key = questionary.password("Enter your API key:").ask()
-    if not api_key:
-        click.echo("API key is required for report generation.", err=True)
-        return
+    if selected_services:
+        click.echo("\nStarting setup for selected service integrations...")
 
-    # Ask if user wants to set a custom base URL
-    use_custom_base = questionary.confirm(
-        "Do you want to use a custom base URL? (e.g., https://openrouter.ai/api/v1)",
-        default=False,
-    ).ask()
+        for service_name in selected_services:
+            click.echo(f"\nSetting up {service_name}...")
+            # Find the service class
+            service_instance = None
+            for service_cls in available_services:
+                if service_cls().get_name() == service_name:
+                    service_instance = service_cls()
+                    break
 
-    base_url = None
-    if use_custom_base:
-        base_url = questionary.text(
-            "Enter your base URL:", default="https://api.openai.com/v1"
-        ).ask()
+            if service_instance:
+                service_instance.setup()
+                # Optionally validate the configuration
+                if questionary.confirm(
+                    f"Would you like to validate {service_name} configuration?",
+                    default=True,
+                ).ask():
+                    service_instance.validate()
+            else:
+                click.echo(f"Error: Could not find service {service_name}", err=True)
 
-    # Save OpenAI configuration
-    update_config("OPENAI_API_KEY", api_key)
-    if base_url:
-        update_config("OPENAI_BASE_URL", base_url)
-
-    click.echo("API configuration saved!")
+    click.echo("\n✓ Setup complete!")
 
 
 @main.command("sync")

@@ -34,7 +34,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["models", "providers"]
+packages = ["models", "providers", "service_integrations"]
 package-dir = {"" = "src"}
 
 [tool.mypy]

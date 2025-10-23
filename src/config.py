@@ -63,7 +63,7 @@ def get_config() -> Config:
         openai_workitem_summary_model=os.getenv(
             "OPENAI_WORKITEM_SUMMARY_MODEL", "gpt-4o-mini"
         ),
-        openai_summary_model=os.getenv("OPENAI_SUMMARY_MODEL", "gpt-4o"),
+        openai_summary_model=os.getenv("OPENAI_SUMMARY_MODEL", "gpt-5"),
     )
 
     return Config(

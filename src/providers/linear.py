@@ -57,12 +57,7 @@ class LinearProvider(BaseProvider):
                 }
             }
             """
-
-            response = self._make_graphql_request(query)
-            viewer = response.get("data", {}).get("viewer", {})
-            click.echo(
-                f"Connected to Linear as: {viewer.get('name')} ({viewer.get('email')})"
-            )
+            self._make_graphql_request(query)
             return True
         except Exception as e:
             click.echo(f"Failed to authenticate with Linear: {e}", err=True)
@@ -79,38 +74,12 @@ class LinearProvider(BaseProvider):
         if variables:
             payload["variables"] = variables
 
-        # Log request details (sanitize auth header)
-        click.echo("\n=== Linear API Request ===", err=True)
-        click.echo(f"URL: {self.graphql_url}", err=True)
-        click.echo(
-            f"Headers: {{'Authorization': '***REDACTED***', 'Content-Type': '{headers['Content-Type']}'}}",
-            err=True,
-        )
-
-        if variables:
-            click.echo(
-                f"Variables: {json.dumps(variables, indent=2, default=str)}", err=True
-            )
-
-        # Log query (truncate if too long)
-        query_preview = query[:500] + "..." if len(query) > 500 else query
-        click.echo(f"Query preview: {query_preview}", err=True)
-
         try:
             response = requests.post(self.graphql_url, json=payload, headers=headers)
 
-            # Log response details
-            click.echo("\n=== Linear API Response ===", err=True)
-            click.echo(f"Status Code: {response.status_code}", err=True)
-            click.echo(f"Response Headers: {dict(response.headers)}", err=True)
-
             # Log response body
             try:
-                response_json = response.json()
-                click.echo(
-                    f"Response Body: {json.dumps(response_json, indent=2, default=str)[:1000]}",
-                    err=True,
-                )
+                response.json()
             except Exception as json_error:
                 click.echo(f"Response Body (raw): {response.text[:1000]}", err=True)
                 click.echo(f"JSON parsing error: {json_error}", err=True)
@@ -166,7 +135,6 @@ class LinearProvider(BaseProvider):
         click.echo(f"Fetching Linear issues from {start_date_str} to {end_date_str}")
 
         # Get current user's ID for filtering
-        click.echo("\nFetching viewer ID...", err=True)
         viewer_query = """
         query {
             viewer {
@@ -176,8 +144,6 @@ class LinearProvider(BaseProvider):
         """
         viewer_response = self._make_graphql_request(viewer_query)
         viewer_id = viewer_response.get("data", {}).get("viewer", {}).get("id")
-        click.echo(f"Viewer ID: {viewer_id}", err=True)
-
         # Fetch issues with pagination
         has_next_page = True
         end_cursor = None
@@ -185,7 +151,6 @@ class LinearProvider(BaseProvider):
 
         while has_next_page:
             try:
-                click.echo(f"\nFetching page (cursor: {end_cursor})...", err=True)
 
                 # Build the GraphQL query with pagination
                 query = """
@@ -300,13 +265,6 @@ class LinearProvider(BaseProvider):
                     "viewerId": viewer_id,
                 }
 
-                click.echo(
-                    f"Variables prepared: after={end_cursor}, "
-                    f"startDate={start_date_str}, endDate={end_date_str}, "
-                    f"viewerId={viewer_id}",
-                    err=True,
-                )
-
                 response = self._make_graphql_request(query, variables)
                 issues_data = response.get("data", {}).get("issues", {})
 
@@ -315,10 +273,6 @@ class LinearProvider(BaseProvider):
                 end_cursor = page_info.get("endCursor")
 
                 issues = issues_data.get("nodes", [])
-                click.echo(
-                    f"Received {len(issues)} issues in this page. Has next page: {has_next_page}",
-                    err=True,
-                )
 
                 for issue in issues:
                     work_item = self._convert_linear_issue_to_work_item(issue)
@@ -328,8 +282,6 @@ class LinearProvider(BaseProvider):
             except Exception as e:
                 click.echo(f"Error fetching Linear issues: {e}", err=True)
                 break
-
-        click.echo(f"Fetched {total_fetched} issues from Linear")
 
     def _convert_linear_issue_to_work_item(self, issue: dict[str, Any]) -> WorkItem:
         """
