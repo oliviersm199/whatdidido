@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 
 from config import get_config
 from models.work_item import WorkItem
+from utils.lock_utils import with_lock_cleanup
 
 WORK_ITEM_SUMMARY_PROMPT = """
 You are helping a software engineer prepare for their performance review by summarizing their work.
@@ -59,7 +60,7 @@ Generate the complete markdown summary.
 """
 
 SUMMARY_FILE = "whatdidido-summary.json"
-SUMMARY_LOCK = ".whatdidido-summary.json.lock"
+SUMMARY_LOCK = "whatdidido-summary.json.lock"  # Lock file without leading dot
 MARKDOWN_FILE = "whatdidido.md"
 
 
@@ -90,8 +91,8 @@ class WorkItemSummarizer:
         """
         self.config = get_config()
         self.client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=self.config.openrouter.openrouter_api_key,
+            base_url=self.config.openai.openai_base_url,
+            api_key=self.config.openai.openai_api_key,
         )
         self.summary_file = summary_file or Path(SUMMARY_FILE)
         self.lock_file = Path(SUMMARY_LOCK)
@@ -108,12 +109,12 @@ class WorkItemSummarizer:
         """Get a file lock for thread-safe operations."""
         return FileLock(str(self.lock_file), timeout=10)
 
+    @with_lock_cleanup(SUMMARY_LOCK)
     def _read_summaries(self) -> list[WorkItemSummary]:
         """Read all summaries from the JSON file."""
-        with self._get_lock():
-            with open(self.summary_file, "r") as f:
-                data = json.load(f)
-                return [WorkItemSummary(**item) for item in data]
+        with open(self.summary_file, "r") as f:
+            data = json.load(f)
+            return [WorkItemSummary(**item) for item in data]
 
     def _write_summaries(self, summaries: list[WorkItemSummary]) -> None:
         """Write summaries to the JSON file atomically."""
@@ -157,7 +158,7 @@ Raw Provider Data:
         prompt = WORK_ITEM_SUMMARY_PROMPT.format(work_item_data=work_item_data)
 
         response = self.client.chat.completions.create(
-            model=self.config.openrouter.openrouter_workitem_summary_model,
+            model=self.config.openai.openai_workitem_summary_model,
             messages=[{"role": "user", "content": prompt}],
         )
 
@@ -195,10 +196,14 @@ Raw Provider Data:
             summaries.append(summary)
 
         # Persist all summaries
-        with self._get_lock():
-            self._write_summaries(summaries)
+        self._persist_summaries(summaries)
 
         return summaries
+
+    @with_lock_cleanup(SUMMARY_LOCK)
+    def _persist_summaries(self, summaries: list[WorkItemSummary]) -> None:
+        """Internal method to persist summaries with lock cleanup."""
+        self._write_summaries(summaries)
 
     def get_summaries(self) -> list[WorkItemSummary]:
         """
@@ -225,8 +230,8 @@ class OverallSummarizer:
         """
         self.config = get_config()
         self.client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=self.config.openrouter.openrouter_api_key,
+            base_url=self.config.openai.openai_base_url,
+            api_key=self.config.openai.openai_api_key,
         )
         self.markdown_file = markdown_file or Path(MARKDOWN_FILE)
 
@@ -255,7 +260,7 @@ class OverallSummarizer:
         prompt = OVERALL_SUMMARY_PROMPT.format(summaries=summaries_text)
 
         response = self.client.chat.completions.create(
-            model=self.config.openrouter.openrouter_summary_model,
+            model=self.config.openai.openai_summary_model,
             messages=[{"role": "user", "content": prompt}],
         )
 

@@ -29,6 +29,8 @@ dev = [
     "pre-commit>=3.0.0",
     "black>=24.0.0",
     "flake8>=7.0.0",
+    "pytest>=8.0.0",
+    "pytest-cov>=6.0.0",
 ]
 
 [tool.setuptools]
@@ -38,3 +40,15 @@ package-dir = {"" = "src"}
 [tool.mypy]
 python_version = "3.13"
 ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]

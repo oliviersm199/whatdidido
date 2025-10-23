@@ -17,16 +17,22 @@ class GithubConfig(BaseModel):
     github_token: str
 
 
-class OpenRouterConfig(BaseModel):
-    openrouter_api_key: str
-    openrouter_workitem_summary_model: str = "anthropic/claude-haiku-4.5"
-    openrouter_summary_model: str = "anthropic/claude-sonnet-4.5"
+class LinearConfig(BaseModel):
+    linear_api_key: str
+
+
+class OpenAIConfig(BaseModel):
+    openai_api_key: str
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_workitem_summary_model: str = "gpt-4o-mini"
+    openai_summary_model: str = "gpt-5"
 
 
 class Config(BaseModel):
     jira: JiraConfig
     github: GithubConfig
-    openrouter: OpenRouterConfig
+    linear: LinearConfig
+    openai: OpenAIConfig
 
 
 CONFIG_DIR = Path.home() / ".whatdididoagain"
@@ -47,17 +53,25 @@ def get_config() -> Config:
         jira_api_key=os.getenv("JIRA_API_KEY", ""),
     )
     github_config = GithubConfig(github_token=os.getenv("GITHUB_TOKEN", ""))
-
-    openrouter_config = OpenRouterConfig(
-        openrouter_api_key=os.getenv("OPENROUTER_API_KEY", ""),
-        openrouter_workitem_summary_model=os.getenv(
-            "OPENROUTER_WORKITEM_SUMMARY_MODEL", "anthropic/claude-haiku-4.5"
-        ),
-        openrouter_summary_model=os.getenv(
-            "OPENROUTER_OVERALL_SUMMARY_MODEL", "anthropic/claude-sonnet-4.5"
-        ),
+    linear_config = LinearConfig(
+        linear_api_key=os.getenv("LINEAR_API_KEY", ""),
     )
-    return Config(jira=jira_config, github=github_config, openrouter=openrouter_config)
+
+    openai_config = OpenAIConfig(
+        openai_api_key=os.getenv("OPENAI_API_KEY", ""),
+        openai_base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+        openai_workitem_summary_model=os.getenv(
+            "OPENAI_WORKITEM_SUMMARY_MODEL", "gpt-4o-mini"
+        ),
+        openai_summary_model=os.getenv("OPENAI_SUMMARY_MODEL", "gpt-4o"),
+    )
+
+    return Config(
+        jira=jira_config,
+        github=github_config,
+        linear=linear_config,
+        openai=openai_config,
+    )
 
 
 def update_config(key: str, value: str):

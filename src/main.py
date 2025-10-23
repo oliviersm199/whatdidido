@@ -1,13 +1,16 @@
+from datetime import date, datetime, timedelta
+
 import click
 import questionary
-from persist import DataStore
 
 from config import get_config
+from persist import DataStore
 from providers import get_provider
 from providers.jira import JiraProvider
+from providers.linear import LinearProvider
 from summarize import OverallSummarizer, WorkItemSummarizer
 
-registered_integrations = [JiraProvider]
+registered_integrations = [JiraProvider, LinearProvider]
 
 
 @click.group()
@@ -42,15 +45,17 @@ def init():
 @main.command("sync")
 @click.option(
     "--start-date",
+    type=click.DateTime(formats=["%Y-%m-%d"]),
     default=None,
     help="Start date for syncing (format: YYYY-MM-DD)",
 )
 @click.option(
     "--end-date",
+    type=click.DateTime(formats=["%Y-%m-%d"]),
     default=None,
     help="End date for syncing (format: YYYY-MM-DD)",
 )
-def sync(start_date: str | None, end_date: str | None):
+def sync(start_date: datetime | None, end_date: datetime | None):
     """
     Sync issues and pull requests between JIRA and GitHub
     """
@@ -71,6 +76,12 @@ def sync(start_date: str | None, end_date: str | None):
     )
     click.echo(f"Starting synchronization for data sources: {joined_integrations}...")
 
+    # Convert datetime to date, defaulting to one year back if not provided
+    parsed_start_date = (
+        start_date.date() if start_date else (date.today() - timedelta(days=365))
+    )
+    parsed_end_date = end_date.date() if end_date else date.today()
+
     data_store = DataStore()
 
     for integration in authenticated_integrations:
@@ -80,7 +91,7 @@ def sync(start_date: str | None, end_date: str | None):
         click.echo(f"Syncing data from {provider_name}...")
         try:
             count = data_store.save_provider_data(
-                integration_instance, start_date, end_date
+                integration_instance, parsed_start_date, parsed_end_date
             )
             click.echo(
                 f"Data sync from {provider_name} complete! Saved {count} work items."
