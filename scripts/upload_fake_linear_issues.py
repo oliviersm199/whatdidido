@@ -13,7 +13,6 @@ import csv
 import json
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 
 import click
@@ -49,11 +48,14 @@ def make_graphql_request(
         "Content-Type": "application/json",
     }
 
-    payload = {"query": query}
+    payload: dict = {"query": query}
     if variables:
         payload["variables"] = variables
 
-    click.echo(f"  [DEBUG] Making GraphQL request with variables: {json.dumps(variables, indent=2) if variables else 'None'}", err=True)
+    click.echo(
+        f"  [DEBUG] Making GraphQL request with variables: {json.dumps(variables, indent=2) if variables else 'None'}",
+        err=True,
+    )
 
     response = requests.post(url, json=payload, headers=headers)
 
@@ -89,7 +91,9 @@ def get_or_create_team(api_key: str, team_key: str) -> str:
     teams = result.get("data", {}).get("teams", {}).get("nodes", [])
 
     if teams:
-        click.echo(f"  [DEBUG] Found team: {teams[0]['name']} (ID: {teams[0]['id']})", err=True)
+        click.echo(
+            f"  [DEBUG] Found team: {teams[0]['name']} (ID: {teams[0]['id']})", err=True
+        )
         return teams[0]["id"]
 
     raise Exception(
@@ -100,7 +104,9 @@ def get_or_create_team(api_key: str, team_key: str) -> str:
 def get_or_create_project(api_key: str, team_id: str, project_name: str) -> str | None:
     """Get or create a project by name."""
     if not project_name or project_name.strip() == "":
-        click.echo(f"  [DEBUG] No project name specified, skipping project creation", err=True)
+        click.echo(
+            "  [DEBUG] No project name specified, skipping project creation", err=True
+        )
         return None
 
     click.echo(f"  [DEBUG] Looking for project: {project_name}", err=True)
@@ -123,11 +129,16 @@ def get_or_create_project(api_key: str, team_id: str, project_name: str) -> str 
 
     for project in projects:
         if project["name"] == project_name:
-            click.echo(f"  [DEBUG] Found existing project: {project_name} (ID: {project['id']})", err=True)
+            click.echo(
+                f"  [DEBUG] Found existing project: {project_name} (ID: {project['id']})",
+                err=True,
+            )
             return project["id"]
 
     # Create new project if not found
-    click.echo(f"  [DEBUG] Project not found, creating new project: {project_name}", err=True)
+    click.echo(
+        f"  [DEBUG] Project not found, creating new project: {project_name}", err=True
+    )
     create_query = """
     mutation($teamId: ID!, $name: String!) {
         projectCreate(input: { teamIds: [$teamId], name: $name }) {
@@ -142,14 +153,14 @@ def get_or_create_project(api_key: str, team_id: str, project_name: str) -> str 
     result = make_graphql_request(
         api_key, create_query, {"teamId": team_id, "name": project_name}
     )
-    project_id = result.get("data", {}).get("projectCreate", {}).get("project", {}).get("id")
+    project_id = (
+        result.get("data", {}).get("projectCreate", {}).get("project", {}).get("id")
+    )
     click.echo(f"  [DEBUG] Created project with ID: {project_id}", err=True)
     return project_id
 
 
-def get_or_create_cycle(
-    api_key: str, team_id: str, cycle_name: str
-) -> str | None:
+def get_or_create_cycle(api_key: str, team_id: str, cycle_name: str) -> str | None:
     """Get or create a cycle by name."""
     if not cycle_name or cycle_name.strip() == "":
         return None
@@ -182,13 +193,17 @@ def get_or_create_cycle(
     return None
 
 
-def get_or_create_labels(api_key: str, team_id: str, label_names: list[str]) -> list[str]:
+def get_or_create_labels(
+    api_key: str, team_id: str, label_names: list[str]
+) -> list[str]:
     """Get or create labels by name, return list of label IDs."""
     if not label_names:
-        click.echo(f"  [DEBUG] No labels specified", err=True)
+        click.echo("  [DEBUG] No labels specified", err=True)
         return []
 
-    click.echo(f"  [DEBUG] Processing {len(label_names)} labels: {label_names}", err=True)
+    click.echo(
+        f"  [DEBUG] Processing {len(label_names)} labels: {label_names}", err=True
+    )
 
     # Get all existing labels for the team
     query = """
@@ -204,14 +219,19 @@ def get_or_create_labels(api_key: str, team_id: str, label_names: list[str]) -> 
     result = make_graphql_request(api_key, query, {"teamId": team_id})
     existing_labels = result.get("data", {}).get("issueLabels", {}).get("nodes", [])
 
-    click.echo(f"  [DEBUG] Found {len(existing_labels)} existing labels in team", err=True)
+    click.echo(
+        f"  [DEBUG] Found {len(existing_labels)} existing labels in team", err=True
+    )
 
     label_map = {label["name"]: label["id"] for label in existing_labels}
     label_ids = []
 
     for label_name in label_names:
         if label_name in label_map:
-            click.echo(f"  [DEBUG] Found existing label: {label_name} (ID: {label_map[label_name]})", err=True)
+            click.echo(
+                f"  [DEBUG] Found existing label: {label_name} (ID: {label_map[label_name]})",
+                err=True,
+            )
             label_ids.append(label_map[label_name])
         else:
             # Create new label
@@ -349,7 +369,9 @@ def create_linear_issue(
         click.echo(f"\nCreating issue: {title}...", nl=False)
 
         mutation = """
-        mutation($teamId: ID!, $title: String!, $description: String, $priority: Int, $stateId: ID!, $estimate: Int, $projectId: ID, $cycleId: ID, $labelIds: [ID!]) {
+        mutation($teamId: ID!, $title: String!, $description: String,
+                 $priority: Int, $stateId: ID!, $estimate: Int, $projectId: ID,
+                 $cycleId: ID, $labelIds: [ID!]) {
             issueCreate(input: {
                 teamId: $teamId
                 title: $title
@@ -475,9 +497,7 @@ def main(csv_file: Path, dry_run: bool, limit: int | None):
             """
             result = make_graphql_request(api_key, query)
             viewer = result.get("data", {}).get("viewer", {})
-            click.echo(
-                f"Connected as: {viewer.get('name')} ({viewer.get('email')})"
-            )
+            click.echo(f"Connected as: {viewer.get('name')} ({viewer.get('email')})")
         except Exception as e:
             click.echo(f"\nError connecting to Linear: {e}", err=True)
             sys.exit(1)
@@ -530,8 +550,8 @@ def main(csv_file: Path, dry_run: bool, limit: int | None):
 
     for i, row in enumerate(rows, 1):
         click.echo(f"\n[{i}/{len(rows)}]", nl="")
-        result = create_linear_issue(api_key, row, team_id, dry_run)
-        if result:
+        issue_result = create_linear_issue(api_key, row, team_id, dry_run)
+        if issue_result:
             created_count += 1
         elif not dry_run:
             failed_count += 1

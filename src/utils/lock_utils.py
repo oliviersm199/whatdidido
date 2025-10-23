@@ -12,7 +12,9 @@ from filelock import FileLock
 T = TypeVar("T")
 
 
-def with_lock_cleanup(lock_file_path: str | Path) -> Callable[[Callable[..., T]], Callable[..., T]]:
+def with_lock_cleanup(
+    lock_file_path: str | Path,
+) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
     Decorator factory that ensures lock files are cleaned up after method execution.
 
@@ -52,4 +54,5 @@ def with_lock_cleanup(lock_file_path: str | Path) -> Callable[[Callable[..., T]]
                         pass  # Lock file may be in use by another process
 
         return wrapper
+
     return decorator

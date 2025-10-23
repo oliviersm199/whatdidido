@@ -82,10 +82,15 @@ class LinearProvider(BaseProvider):
         # Log request details (sanitize auth header)
         click.echo("\n=== Linear API Request ===", err=True)
         click.echo(f"URL: {self.graphql_url}", err=True)
-        click.echo(f"Headers: {{'Authorization': '***REDACTED***', 'Content-Type': '{headers['Content-Type']}'}}", err=True)
+        click.echo(
+            f"Headers: {{'Authorization': '***REDACTED***', 'Content-Type': '{headers['Content-Type']}'}}",
+            err=True,
+        )
 
         if variables:
-            click.echo(f"Variables: {json.dumps(variables, indent=2, default=str)}", err=True)
+            click.echo(
+                f"Variables: {json.dumps(variables, indent=2, default=str)}", err=True
+            )
 
         # Log query (truncate if too long)
         query_preview = query[:500] + "..." if len(query) > 500 else query
@@ -95,14 +100,17 @@ class LinearProvider(BaseProvider):
             response = requests.post(self.graphql_url, json=payload, headers=headers)
 
             # Log response details
-            click.echo(f"\n=== Linear API Response ===", err=True)
+            click.echo("\n=== Linear API Response ===", err=True)
             click.echo(f"Status Code: {response.status_code}", err=True)
             click.echo(f"Response Headers: {dict(response.headers)}", err=True)
 
             # Log response body
             try:
                 response_json = response.json()
-                click.echo(f"Response Body: {json.dumps(response_json, indent=2, default=str)[:1000]}", err=True)
+                click.echo(
+                    f"Response Body: {json.dumps(response_json, indent=2, default=str)[:1000]}",
+                    err=True,
+                )
             except Exception as json_error:
                 click.echo(f"Response Body (raw): {response.text[:1000]}", err=True)
                 click.echo(f"JSON parsing error: {json_error}", err=True)
@@ -112,23 +120,25 @@ class LinearProvider(BaseProvider):
 
             result = response.json()
             if "errors" in result:
-                click.echo(f"\n=== GraphQL Errors Detected ===", err=True)
-                click.echo(f"Errors: {json.dumps(result['errors'], indent=2)}", err=True)
+                click.echo("\n=== GraphQL Errors Detected ===", err=True)
+                click.echo(
+                    f"Errors: {json.dumps(result['errors'], indent=2)}", err=True
+                )
                 raise Exception(f"GraphQL errors: {result['errors']}")
 
             return result
 
         except requests.exceptions.HTTPError as http_err:
-            click.echo(f"\n=== HTTP Error ===", err=True)
+            click.echo("\n=== HTTP Error ===", err=True)
             click.echo(f"HTTP Error: {http_err}", err=True)
             click.echo(f"Response Text: {response.text}", err=True)
             raise
         except requests.exceptions.RequestException as req_err:
-            click.echo(f"\n=== Request Error ===", err=True)
+            click.echo("\n=== Request Error ===", err=True)
             click.echo(f"Request Error: {req_err}", err=True)
             raise
         except Exception as e:
-            click.echo(f"\n=== Unexpected Error ===", err=True)
+            click.echo("\n=== Unexpected Error ===", err=True)
             click.echo(f"Error: {e}", err=True)
             raise
 
@@ -290,7 +300,12 @@ class LinearProvider(BaseProvider):
                     "viewerId": viewer_id,
                 }
 
-                click.echo(f"Variables prepared: after={end_cursor}, startDate={start_date_str}, endDate={end_date_str}, viewerId={viewer_id}", err=True)
+                click.echo(
+                    f"Variables prepared: after={end_cursor}, "
+                    f"startDate={start_date_str}, endDate={end_date_str}, "
+                    f"viewerId={viewer_id}",
+                    err=True,
+                )
 
                 response = self._make_graphql_request(query, variables)
                 issues_data = response.get("data", {}).get("issues", {})
@@ -300,7 +315,10 @@ class LinearProvider(BaseProvider):
                 end_cursor = page_info.get("endCursor")
 
                 issues = issues_data.get("nodes", [])
-                click.echo(f"Received {len(issues)} issues in this page. Has next page: {has_next_page}", err=True)
+                click.echo(
+                    f"Received {len(issues)} issues in this page. Has next page: {has_next_page}",
+                    err=True,
+                )
 
                 for issue in issues:
                     work_item = self._convert_linear_issue_to_work_item(issue)

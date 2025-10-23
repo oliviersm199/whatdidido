@@ -1,11 +1,7 @@
 """Unit tests for the config module."""
 
 import os
-import tempfile
-from pathlib import Path
 from unittest.mock import patch
-
-import pytest
 
 from config import (
     Config,
@@ -136,7 +132,7 @@ class TestGetConfig:
         with patch("config.CONFIG_DIR", config_dir):
             with patch("config.CONFIG_FILE", config_file):
                 with patch.dict(os.environ, {}, clear=False):
-                    config = get_config()
+                    get_config()
                     assert config_dir.exists()
                     assert config_file.exists()
 
@@ -155,7 +151,9 @@ class TestGetConfig:
         ]
         with patch("config.CONFIG_DIR", tmp_path):
             with patch("config.CONFIG_FILE", tmp_path / "config.env"):
-                with patch.dict(os.environ, {k: "" for k in env_vars_to_clear}, clear=False):
+                with patch.dict(
+                    os.environ, {k: "" for k in env_vars_to_clear}, clear=False
+                ):
                     config = get_config()
                     assert config.jira.jira_url == ""
                     assert config.jira.jira_username == ""
@@ -261,4 +259,7 @@ class TestConfigIntegration:
                     assert config.jira.jira_url == "https://workflow.atlassian.net"
                     assert config.github.github_token == "gh_workflow_token"
                     assert config.openai.openai_api_key == "sk-workflow-key"
-                    assert config.openai.openai_base_url == "https://workflow.openai.com/v1"
+                    assert (
+                        config.openai.openai_base_url
+                        == "https://workflow.openai.com/v1"
+                    )
