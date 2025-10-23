@@ -1,1 +1,1 @@
-"""Test suite for whatdididoagain."""
+"""Test suite for whatdidido."""

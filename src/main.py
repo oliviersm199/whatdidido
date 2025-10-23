@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 import click
 import questionary
 
-from config import get_config
+from config import get_config, update_config
 from persist import DataStore
 from providers import get_provider
 from providers.jira import JiraProvider
@@ -40,6 +40,36 @@ def init():
         click.echo(f"{integration} setup complete!")
 
     click.echo("All selected integrations have been set up.")
+
+    # Setup OpenAI configuration
+    click.echo("\nSetting up OpenAI-compatible API configuration...")
+    click.echo(
+        "This is used for generating summaries. Compatible with OpenAI, OpenRouter, or any OpenAI-compatible API."
+    )
+
+    api_key = questionary.password("Enter your API key:").ask()
+    if not api_key:
+        click.echo("API key is required for report generation.", err=True)
+        return
+
+    # Ask if user wants to set a custom base URL
+    use_custom_base = questionary.confirm(
+        "Do you want to use a custom base URL? (e.g., https://openrouter.ai/api/v1)",
+        default=False,
+    ).ask()
+
+    base_url = None
+    if use_custom_base:
+        base_url = questionary.text(
+            "Enter your base URL:", default="https://api.openai.com/v1"
+        ).ask()
+
+    # Save OpenAI configuration
+    update_config("OPENAI_API_KEY", api_key)
+    if base_url:
+        update_config("OPENAI_BASE_URL", base_url)
+
+    click.echo("API configuration saved!")
 
 
 @main.command("sync")
@@ -105,32 +135,119 @@ def sync(start_date: datetime | None, end_date: datetime | None):
     click.echo("All data sources have been synchronized.")
 
 
+@main.command("config")
+def show_config():
+    """
+    Display current configuration (with sensitive keys anonymized)
+    """
+    from config import CONFIG_FILE
+
+    if not CONFIG_FILE.exists():
+        click.echo("No configuration file found. Please run 'init' command first.", err=True)
+        return
+
+    click.echo(f"Configuration file: {CONFIG_FILE}\n")
+
+    with open(CONFIG_FILE, "r") as f:
+        lines = f.readlines()
+
+    if not lines:
+        click.echo("Configuration file is empty.")
+        return
+
+    # Keys that should be anonymized
+    sensitive_keys = ["API_KEY", "TOKEN", "PASSWORD"]
+
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            click.echo(line)
+            continue
+
+        if "=" in line:
+            key, value = line.split("=", 1)
+            # Check if this is a sensitive key
+            if any(sensitive in key.upper() for sensitive in sensitive_keys):
+                if value:
+                    # Show first 4 and last 4 characters
+                    if len(value) > 8:
+                        anonymized = f"{value[:4]}...{value[-4:]}"
+                    else:
+                        anonymized = "****"
+                    click.echo(f"{key}={anonymized}")
+                else:
+                    click.echo(f"{key}=")
+            else:
+                click.echo(line)
+        else:
+            click.echo(line)
+
+
+@main.command("clean")
+@click.option(
+    "--confirm",
+    is_flag=True,
+    help="Skip confirmation prompt"
+)
+def clean(confirm: bool):
+    """
+    Clean up whatdidido data files (JSON data and markdown reports)
+    """
+    from pathlib import Path
+
+    # Files to clean up
+    json_file = Path("whatdidido.json")
+    json_lock = Path("whatdidido.json.lock")
+    md_file = Path("whatdidido.md")
+
+    files_to_delete = []
+    if json_file.exists():
+        files_to_delete.append(json_file)
+    if json_lock.exists():
+        files_to_delete.append(json_lock)
+    if md_file.exists():
+        files_to_delete.append(md_file)
+
+    if not files_to_delete:
+        click.echo("No whatdidido files found to clean up.")
+        return
+
+    click.echo("The following files will be deleted:")
+    for file in files_to_delete:
+        click.echo(f"  - {file}")
+
+    if not confirm:
+        confirmed = questionary.confirm(
+            "\nAre you sure you want to delete these files?",
+            default=False
+        ).ask()
+        if not confirmed:
+            click.echo("Cleanup cancelled.")
+            return
+
+    # Delete files
+    for file in files_to_delete:
+        try:
+            file.unlink()
+            click.echo(f"Deleted: {file}")
+        except Exception as e:
+            click.echo(f"Error deleting {file}: {e}", err=True)
+
+    click.echo("\nCleanup complete!")
+
+
 @main.command("report")
 def report():
     """
     Generate a report of your activities from JIRA and GitHub
     """
-    # Validate OpenRouter API key is configured
+    # Validate OpenAI API key is configured
     config = get_config()
-    if not config.openrouter.openrouter_api_key:
+    if not config.openai.openai_api_key:
         click.echo(
-            "OpenRouter API key is not set.",
+            "OpenAI API key is not set, please run the init.",
             err=True,
         )
-        # Prompt for API key
-        api_key = questionary.password("Enter your OpenRouter API key:").ask()
-        if not api_key:
-            click.echo("API key is required to generate reports.", err=True)
-            return
-
-        # Save to config
-        from config import update_config
-
-        update_config("OPENROUTER_API_KEY", api_key)
-        click.echo("OpenRouter API key has been saved to config.")
-
-        # Reload config to get the updated value
-        config = get_config()
 
     data_store = DataStore()
     work_items_by_provider = data_store.get_all_data()
@@ -149,11 +266,9 @@ def report():
     )
     click.echo("Generating summaries for each work item...\n")
 
-    # Step 1: Generate individual work item summaries
     summarizer = WorkItemSummarizer()
     work_item_summaries = summarizer.summarize_work_items(all_work_items)
 
-    # Step 2: Generate overall summary from individual summaries
     click.echo("\nGenerating overall summary...")
     overall_summarizer = OverallSummarizer()
     overall_summarizer.generate_and_save_summary(work_item_summaries)

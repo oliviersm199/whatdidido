@@ -35,7 +35,7 @@ class Config(BaseModel):
     openai: OpenAIConfig
 
 
-CONFIG_DIR = Path.home() / ".whatdididoagain"
+CONFIG_DIR = Path.home() / ".whatdidido"
 CONFIG_FILE = CONFIG_DIR / "config.env"
 
 

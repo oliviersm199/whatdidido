@@ -1,6 +1,6 @@
 # Test Suite
 
-This directory contains the test suite for the whatdididoagain project.
+This directory contains the test suite for the whatdidido project.
 
 ## Running Tests
 
@@ -34,11 +34,13 @@ pytest tests/test_config.py::TestConfigModels::test_openai_config_defaults
 ## Coverage
 
 Current test coverage:
+
 - `config.py`: 100%
 
 ## GitHub Actions
 
 Tests run automatically on:
+
 - Push to main branch
 - Pull requests to main branch
 

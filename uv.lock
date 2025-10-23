@@ -1006,7 +1006,7 @@ wheels = [
 ]
 
 [[package]]
-name = "whatdididoagain"
+name = "whatdidido"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
