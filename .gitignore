@@ -212,3 +212,6 @@ whatdidido.json
 whatdidido.md
 whatdidido.json.lock
 .whatdidido-summary.json.lock
+
+# Visual Studio
+.vscode/

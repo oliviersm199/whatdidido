@@ -143,7 +143,9 @@ def show_config():
     from config import CONFIG_FILE
 
     if not CONFIG_FILE.exists():
-        click.echo("No configuration file found. Please run 'init' command first.", err=True)
+        click.echo(
+            "No configuration file found. Please run 'init' command first.", err=True
+        )
         return
 
     click.echo(f"Configuration file: {CONFIG_FILE}\n")
@@ -184,11 +186,7 @@ def show_config():
 
 
 @main.command("clean")
-@click.option(
-    "--confirm",
-    is_flag=True,
-    help="Skip confirmation prompt"
-)
+@click.option("--confirm", is_flag=True, help="Skip confirmation prompt")
 def clean(confirm: bool):
     """
     Clean up whatdidido data files (JSON data and markdown reports)
@@ -197,12 +195,15 @@ def clean(confirm: bool):
 
     # Files to clean up
     json_file = Path("whatdidido.json")
+    summary_file = Path("whatdidido-summary.json")
     json_lock = Path("whatdidido.json.lock")
     md_file = Path("whatdidido.md")
 
     files_to_delete = []
     if json_file.exists():
         files_to_delete.append(json_file)
+    if summary_file.exists():
+        files_to_delete.append(summary_file)
     if json_lock.exists():
         files_to_delete.append(json_lock)
     if md_file.exists():
@@ -218,8 +219,7 @@ def clean(confirm: bool):
 
     if not confirm:
         confirmed = questionary.confirm(
-            "\nAre you sure you want to delete these files?",
-            default=False
+            "\nAre you sure you want to delete these files?", default=False
         ).ask()
         if not confirmed:
             click.echo("Cleanup cancelled.")
