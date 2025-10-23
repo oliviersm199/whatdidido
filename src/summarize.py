@@ -14,6 +14,8 @@ from pathlib import Path
 from filelock import FileLock
 from openai import OpenAI
 from pydantic import BaseModel, Field
+from rich.console import Console
+from rich.markdown import Markdown
 
 from config import get_config
 from models.work_item import WorkItem
@@ -286,7 +288,9 @@ class OverallSummarizer:
         with open(self.markdown_file, "w") as f:
             f.write(markdown_summary)
 
-        # Print to stdout
-        print(markdown_summary)
+        # Print to stdout with rich markdown rendering
+        console = Console()
+        md = Markdown(markdown_summary)
+        console.print(md)
 
         return markdown_summary

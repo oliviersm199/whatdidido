@@ -31,3 +31,7 @@ class BaseServiceIntegration(ABC):
         Returns:
             True if validation succeeds, False otherwise.
         """
+
+    @abstractmethod
+    def disconnect(self) -> None:
+        """Remove all configuration for this service (credentials, settings, etc.)"""

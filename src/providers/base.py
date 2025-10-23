@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from datetime import date
 from typing import Generator
 
+from models.fetch_params import FetchParams
 from models.work_item import WorkItem
 
 
@@ -31,7 +31,20 @@ class BaseProvider(ABC):
         """
 
     @abstractmethod
-    def fetch_items(
-        self, start_date: date, end_date: date
-    ) -> Generator[WorkItem, None, None]:
+    def fetch_items(self, params: FetchParams) -> Generator[WorkItem, None, None]:
+        """
+        Fetch work items based on the provided parameters.
+
+        Args:
+            params: FetchParams object containing filtering options
+
+        Yields:
+            WorkItem objects matching the filter criteria
+        """
         pass
+
+    @abstractmethod
+    def disconnect(self):
+        """
+        Remove all configuration for this provider (credentials, settings, etc.)
+        """

@@ -226,7 +226,7 @@ def main(csv_file: Path, dry_run: bool, limit: int | None):
         config = get_config()
         if not config.jira.jira_url or not config.jira.jira_api_key:
             click.echo(
-                "\nError: Jira configuration not found. Please run 'whatdidido init' first.",
+                "\nError: Jira configuration not found. Please run 'whatdidido connect' first.",
                 err=True,
             )
             sys.exit(1)

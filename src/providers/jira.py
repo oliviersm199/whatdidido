@@ -1,4 +1,3 @@
-from datetime import date
 from typing import Generator, TypedDict
 
 import click
@@ -6,6 +5,7 @@ import jira
 import questionary
 
 from config import get_config, update_config
+from models.fetch_params import FetchParams
 from models.work_item import WorkItem
 from providers.base import BaseProvider
 
@@ -60,15 +60,12 @@ class JiraProvider(BaseProvider):
             click.echo(f"Failed to authenticate with Jira: {e}", err=True)
             return False
 
-    def fetch_items(
-        self, start_date: date, end_date: date
-    ) -> Generator[WorkItem, None, None]:
+    def fetch_items(self, params: FetchParams) -> Generator[WorkItem, None, None]:
         """
         Fetch Jira issues updated within the date range.
 
         Args:
-            start_date: Start date
-            end_date: End date
+            params: FetchParams object containing filtering options
 
         Yields:
             WorkItem objects with comprehensive Jira data
@@ -81,18 +78,25 @@ class JiraProvider(BaseProvider):
         jql_parts = []
 
         # Convert dates to strings for JQL query
-        start_date_str = start_date.strftime("%Y-%m-%d")
-        end_date_str = end_date.strftime("%Y-%m-%d")
+        start_date_str = params.start_date.strftime("%Y-%m-%d")
+        end_date_str = params.end_date.strftime("%Y-%m-%d")
 
         jql_parts.append(
             f'updated >= "{start_date_str}" AND updated <= "{end_date_str}"'
         )
 
-        # Get issues assigned to current user or where user is reporter
-        # You can customize this query based on your needs
-        jql_parts.append(
-            "(assignee = currentUser() OR reporter = currentUser()) ORDER BY updated DESC"
-        )
+        # Build user filter
+        if params.user_filter:
+            # Support email or username
+            user_identifier = params.user_filter
+            jql_parts.append(
+                f'(assignee = "{user_identifier}" OR reporter = "{user_identifier}") ORDER BY updated DESC'
+            )
+        else:
+            # Get issues assigned to current user or where user is reporter
+            jql_parts.append(
+                "(assignee = currentUser() OR reporter = currentUser()) ORDER BY updated DESC"
+            )
 
         jql_query = " AND ".join(jql_parts)
 
@@ -338,6 +342,12 @@ class JiraProvider(BaseProvider):
         )
 
         return work_item
+
+    def disconnect(self):
+        """Remove Jira configuration (credentials and settings)."""
+        update_config("JIRA_URL", "")
+        update_config("JIRA_USERNAME", "")
+        update_config("JIRA_API_KEY", "")
 
 
 def ask_jira_credentials():

@@ -3,12 +3,12 @@ Persist raw data synced from third parties into JSON files
 """
 
 import json
-from datetime import date
 from pathlib import Path
 from typing import Any
 
 from filelock import FileLock
 
+from models.fetch_params import FetchParams
 from models.work_item import WorkItem
 from providers.base import BaseProvider
 from utils.lock_utils import with_lock_cleanup
@@ -69,16 +69,13 @@ class DataStore:
             json.dump(data, f, indent=2, sort_keys=True)
         temp_file.replace(self.data_file)
 
-    def save_provider_data(
-        self, provider: BaseProvider, start_date: date, end_date: date
-    ) -> int:
+    def save_provider_data(self, provider: BaseProvider, params: FetchParams) -> int:
         """
         Fetch and save work items from a provider.
 
         Args:
             provider: The provider to fetch data from
-            start_date: Start date for fetching items
-            end_date: End date for fetching items
+            params: FetchParams object containing filtering options
 
         Returns:
             Number of items saved
@@ -86,13 +83,14 @@ class DataStore:
         Example:
             store = DataStore()
             jira_provider = JiraProvider()
-            count = store.save_provider_data(jira_provider, "2024-01-01", "2024-01-31")
+            params = FetchParams(start_date=date(2024, 1, 1), end_date=date(2024, 1, 31))
+            count = store.save_provider_data(jira_provider, params)
         """
         provider_name = provider.get_name()
         items: list[dict[str, Any]] = []
 
         # Fetch items from provider
-        for work_item in provider.fetch_items(start_date, end_date):
+        for work_item in provider.fetch_items(params):
             items.append(work_item.model_dump())
 
         # Save to file with lock

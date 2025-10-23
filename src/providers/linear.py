@@ -1,6 +1,5 @@
 import datetime
 import json
-from datetime import date
 from typing import Any, Generator, TypedDict
 
 import click
@@ -8,6 +7,7 @@ import questionary
 import requests
 
 from config import get_config, update_config
+from models.fetch_params import FetchParams
 from models.work_item import WorkItem
 from providers.base import BaseProvider
 
@@ -112,15 +112,12 @@ class LinearProvider(BaseProvider):
             click.echo(f"Error: {e}", err=True)
             raise
 
-    def fetch_items(
-        self, start_date: date, end_date: date
-    ) -> Generator[WorkItem, None, None]:
+    def fetch_items(self, params: FetchParams) -> Generator[WorkItem, None, None]:
         """
         Fetch Linear issues updated within the date range.
 
         Args:
-            start_date: Start date
-            end_date: End date
+            params: FetchParams object containing filtering options
 
         Yields:
             WorkItem objects with comprehensive Linear data
@@ -130,21 +127,53 @@ class LinearProvider(BaseProvider):
                 return
 
         # Convert dates to ISO strings for Linear API
-        start_date_str = start_date.isoformat()
-        end_date_str = (end_date + datetime.timedelta(days=1)).isoformat()
+        start_date_str = params.start_date.isoformat()
+        end_date_str = (params.end_date + datetime.timedelta(days=1)).isoformat()
 
         click.echo(f"Fetching Linear issues from {start_date_str} to {end_date_str}")
 
-        # Get current user's ID for filtering
-        viewer_query = """
-        query {
-            viewer {
-                id
+        # Get user ID for filtering
+        if params.user_filter:
+            # Try to find user by email
+            user_query = """
+            query($email: String!) {
+                users(filter: { email: { eq: $email } }) {
+                    nodes {
+                        id
+                        email
+                        name
+                    }
+                }
             }
-        }
-        """
-        viewer_response = self._make_graphql_request(viewer_query)
-        viewer_id = viewer_response.get("data", {}).get("viewer", {}).get("id")
+            """
+            user_response = self._make_graphql_request(
+                user_query, {"email": params.user_filter}
+            )
+            users = user_response.get("data", {}).get("users", {}).get("nodes", [])
+
+            if not users:
+                click.echo(
+                    f"Warning: No user found with email '{params.user_filter}'. Fetching issues anyway.",
+                    err=True,
+                )
+                user_id = None
+            else:
+                user_id = users[0]["id"]
+                user_name = users[0].get("name", params.user_filter)
+                click.echo(
+                    f"Fetching issues for user: {user_name} ({params.user_filter})"
+                )
+        else:
+            # Get current user's ID
+            viewer_query = """
+            query {
+                viewer {
+                    id
+                }
+            }
+            """
+            viewer_response = self._make_graphql_request(viewer_query)
+            user_id = viewer_response.get("data", {}).get("viewer", {}).get("id")
         # Fetch issues with pagination
         has_next_page = True
         end_cursor = None
@@ -155,15 +184,15 @@ class LinearProvider(BaseProvider):
 
                 # Build the GraphQL query with pagination
                 query = """
-                query($after: String, $startDate: DateTimeOrDuration!, $endDate: DateTimeOrDuration!, $viewerId: ID!) {
+                query($after: String, $startDate: DateTimeOrDuration!, $endDate: DateTimeOrDuration!, $userId: ID!) {
                     issues(
                         first: 50
                         after: $after
                         filter: {
                             updatedAt: { gte: $startDate, lte: $endDate }
                             or: [
-                                { assignee: { id: { eq: $viewerId } } }
-                                { creator: { id: { eq: $viewerId } } }
+                                { assignee: { id: { eq: $userId } } }
+                                { creator: { id: { eq: $userId } } }
                             ]
                         }
                         orderBy: updatedAt
@@ -263,7 +292,7 @@ class LinearProvider(BaseProvider):
                     "after": end_cursor,
                     "startDate": start_date_str,
                     "endDate": end_date_str,
-                    "viewerId": viewer_id,
+                    "userId": user_id,
                 }
 
                 response = self._make_graphql_request(query, variables)
@@ -469,6 +498,10 @@ class LinearProvider(BaseProvider):
         )
 
         return work_item
+
+    def disconnect(self):
+        """Remove Linear configuration (credentials and settings)."""
+        update_config("LINEAR_API_KEY", "")
 
 
 def ask_linear_credentials():

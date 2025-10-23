@@ -103,3 +103,10 @@ class OpenAIServiceIntegration(BaseServiceIntegration):
         except Exception as e:
             click.echo(f"✗ OpenAI validation failed: {str(e)}", err=True)
             return False
+
+    def disconnect(self) -> None:
+        """Remove OpenAI configuration and reset to default settings."""
+        update_config("OPENAI_API_KEY", "")
+        update_config("OPENAI_BASE_URL", "https://api.openai.com/v1")
+        update_config("OPENAI_WORKITEM_SUMMARY_MODEL", "gpt-4o-mini")
+        update_config("OPENAI_SUMMARY_MODEL", "gpt-5")

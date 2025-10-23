@@ -2,7 +2,7 @@
 
 ## Overview
 
-"What Did I Do Again?" uses a global configuration file stored in your home directory to manage credentials and settings for various integrations (Jira, GitHub, etc.).
+"What Did I Do Again?" uses a global configuration file stored in your home directory to manage credentials and settings for various integrations (Jira, Linear, etc.).
 
 ## Configuration File Location
 
@@ -52,12 +52,12 @@ The configuration system consists of three main components:
 
 ## Configuration Methods
 
-### Method 1: Using the `init` Command (Recommended)
+### Method 1: Using the `connect` Command (Recommended)
 
 The easiest way to configure the tool is through the interactive setup:
 
 ```bash
-whatdidido init
+whatdidido connect
 ```
 
 This will:
@@ -150,7 +150,7 @@ This means either:
 - Your credentials are missing or incorrect
 - Your API tokens have expired
 
-**Solution:** Run `whatdidido init` to reconfigure
+**Solution:** Run `whatdidido connect` to reconfigure
 
 ### Configuration not being recognized
 

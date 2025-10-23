@@ -4,6 +4,7 @@ import click
 import questionary
 
 from config import get_config
+from models.fetch_params import FetchParams
 from persist import DataStore
 from providers import get_provider
 from providers.jira import JiraProvider
@@ -24,8 +25,8 @@ def main():
     pass
 
 
-@main.command("init")
-def init():
+@main.command("connect")
+def connect():
     """
     Guided step by step instructions on how to setup repository
     """
@@ -91,9 +92,15 @@ def init():
     default=None,
     help="End date for syncing (format: YYYY-MM-DD)",
 )
-def sync(start_date: datetime | None, end_date: datetime | None):
+@click.option(
+    "--user",
+    type=str,
+    default=None,
+    help="User email to sync for (default: authenticated user). Works across Jira and Linear.",
+)
+def sync(start_date: datetime | None, end_date: datetime | None, user: str | None):
     """
-    Sync issues and pull requests between JIRA and GitHub
+    Sync issues and pull requests from Jira and Linear
     """
     available_integrations = [integration for integration in registered_integrations]
     authenticated_integrations = [
@@ -110,13 +117,25 @@ def sync(start_date: datetime | None, end_date: datetime | None):
     joined_integrations = ", ".join(
         [integration().get_name() for integration in authenticated_integrations]
     )
-    click.echo(f"Starting synchronization for data sources: {joined_integrations}...")
+
+    # Show who we're syncing for
+    user_msg = f" for user: {user}" if user else " (authenticated user)"
+    click.echo(
+        f"Starting synchronization for data sources: {joined_integrations}{user_msg}"
+    )
 
     # Convert datetime to date, defaulting to one year back if not provided
     parsed_start_date = (
         start_date.date() if start_date else (date.today() - timedelta(days=365))
     )
     parsed_end_date = end_date.date() if end_date else date.today()
+
+    # Create fetch parameters
+    fetch_params = FetchParams(
+        start_date=parsed_start_date,
+        end_date=parsed_end_date,
+        user_filter=user,
+    )
 
     data_store = DataStore()
 
@@ -126,9 +145,7 @@ def sync(start_date: datetime | None, end_date: datetime | None):
 
         click.echo(f"Syncing data from {provider_name}...")
         try:
-            count = data_store.save_provider_data(
-                integration_instance, parsed_start_date, parsed_end_date
-            )
+            count = data_store.save_provider_data(integration_instance, fetch_params)
             click.echo(
                 f"Data sync from {provider_name} complete! Saved {count} work items."
             )
@@ -280,6 +297,115 @@ def report():
     overall_summarizer.generate_and_save_summary(work_item_summaries)
 
     click.echo("\nReport generation complete. Summary saved to whatdidido.md")
+
+
+@main.command("disconnect")
+@click.option(
+    "--data-sources",
+    is_flag=True,
+    help="Disconnect data source integrations (Jira, Linear, etc.)",
+)
+@click.option(
+    "--services",
+    is_flag=True,
+    help="Disconnect service integrations (OpenAI, etc.)",
+)
+@click.option("--confirm", is_flag=True, help="Skip confirmation prompt")
+def disconnect(data_sources: bool, services: bool, confirm: bool):
+    """
+    Disconnect (wipe) data source and/or service integrations
+    """
+    from config import CONFIG_FILE
+
+    # If neither flag is set, ask the user what they want to disconnect
+    if not data_sources and not services:
+        disconnect_choices = questionary.checkbox(
+            "What would you like to disconnect?",
+            choices=[
+                "Data sources (Jira, Linear, etc.)",
+                "Service integrations (OpenAI, etc.)",
+            ],
+        ).ask()
+
+        if not disconnect_choices:
+            click.echo("No integrations selected. Disconnect cancelled.")
+            return
+
+        data_sources = "Data sources (Jira, Linear, etc.)" in disconnect_choices
+        services = "Service integrations (OpenAI, etc.)" in disconnect_choices
+
+    # Check if config file exists
+    if not CONFIG_FILE.exists():
+        click.echo("No configuration file found. Nothing to disconnect.")
+        return
+
+    # Build list of what will be removed
+    items_to_remove = []
+
+    if data_sources:
+        for integration in registered_integrations:
+            integration_instance = integration()
+            if integration_instance.is_configured():
+                items_to_remove.append(
+                    f"  - {integration_instance.get_name()} data source"
+                )
+
+    if services:
+        for service in registered_service_integrations:
+            service_instance = service()
+            if service_instance.is_configured():
+                items_to_remove.append(f"  - {service_instance.get_name()} service")
+
+    if not items_to_remove:
+        click.echo("No configured integrations found to disconnect.")
+        return
+
+    # Show what will be disconnected
+    click.echo("The following integrations will be disconnected:")
+    for item in items_to_remove:
+        click.echo(item)
+
+    # Confirm with user
+    if not confirm:
+        confirmed = questionary.confirm(
+            "\nAre you sure you want to disconnect these integrations? This will remove all stored credentials.",
+            default=False,
+        ).ask()
+        if not confirmed:
+            click.echo("Disconnect cancelled.")
+            return
+
+    # Perform the disconnect
+    disconnected_count = 0
+
+    if data_sources:
+        for integration in registered_integrations:
+            integration_instance = integration()
+            if integration_instance.is_configured():
+                provider_name = integration_instance.get_name()
+
+                try:
+                    integration_instance.disconnect()
+                    click.echo(f"Disconnected: {provider_name}")
+                    disconnected_count += 1
+                except Exception as e:
+                    click.echo(f"Error disconnecting {provider_name}: {e}", err=True)
+
+    if services:
+        for service in registered_service_integrations:
+            service_instance = service()
+            if service_instance.is_configured():
+                service_name = service_instance.get_name()
+
+                try:
+                    service_instance.disconnect()
+                    click.echo(f"Disconnected: {service_name}")
+                    disconnected_count += 1
+                except Exception as e:
+                    click.echo(f"Error disconnecting {service_name}: {e}", err=True)
+
+    click.echo(f"\nDisconnect complete! Removed {disconnected_count} integration(s).")
+    click.echo("Run 'init' to reconnect any integrations.")
 
 
 if __name__ == "__main__":
