@@ -61,6 +61,9 @@ def make_graphql_request(
 
     click.echo(f"  [DEBUG] Response status: {response.status_code}", err=True)
 
+    # Log body:
+    click.echo(f"  [DEBUG] Response body: {response.text}", err=True)
+
     response.raise_for_status()
 
     result = response.json()
@@ -112,20 +115,35 @@ def get_or_create_project(api_key: str, team_id: str, project_name: str) -> str 
     click.echo(f"  [DEBUG] Looking for project: {project_name}", err=True)
 
     # First, try to find existing project
+    # Note: We fetch all projects and filter in Python since ProjectFilter doesn't support team filtering
     query = """
-    query($teamId: ID!) {
-        projects(filter: { team: { id: { eq: $teamId } } }) {
+    query {
+        projects {
             nodes {
                 id
                 name
+                teams {
+                    nodes {
+                        id
+                    }
+                }
             }
         }
     }
     """
-    result = make_graphql_request(api_key, query, {"teamId": team_id})
-    projects = result.get("data", {}).get("projects", {}).get("nodes", [])
+    result = make_graphql_request(api_key, query, None)
+    all_projects = result.get("data", {}).get("projects", {}).get("nodes", [])
 
-    click.echo(f"  [DEBUG] Found {len(projects)} existing projects", err=True)
+    # Filter projects that belong to the specified team
+    projects = [
+        p
+        for p in all_projects
+        if any(t["id"] == team_id for t in p.get("teams", {}).get("nodes", []))
+    ]
+
+    click.echo(
+        f"  [DEBUG] Found {len(projects)} existing projects for this team", err=True
+    )
 
     for project in projects:
         if project["name"] == project_name:
@@ -140,8 +158,8 @@ def get_or_create_project(api_key: str, team_id: str, project_name: str) -> str 
         f"  [DEBUG] Project not found, creating new project: {project_name}", err=True
     )
     create_query = """
-    mutation($teamId: ID!, $name: String!) {
-        projectCreate(input: { teamIds: [$teamId], name: $name }) {
+    mutation($teamIds: [String!]!, $name: String!) {
+        projectCreate(input: { teamIds: $teamIds, name: $name }) {
             success
             project {
                 id
@@ -151,7 +169,7 @@ def get_or_create_project(api_key: str, team_id: str, project_name: str) -> str 
     }
     """
     result = make_graphql_request(
-        api_key, create_query, {"teamId": team_id, "name": project_name}
+        api_key, create_query, {"teamIds": [team_id], "name": project_name}
     )
     project_id = (
         result.get("data", {}).get("projectCreate", {}).get("project", {}).get("id")
@@ -166,19 +184,26 @@ def get_or_create_cycle(api_key: str, team_id: str, cycle_name: str) -> str | No
         return None
 
     # First, try to find existing cycle
+    # Note: We fetch all cycles and filter in Python since CycleFilter doesn't support team filtering
     query = """
-    query($teamId: ID!) {
-        cycles(filter: { team: { id: { eq: $teamId } } }) {
+    query {
+        cycles {
             nodes {
                 id
                 name
                 number
+                team {
+                    id
+                }
             }
         }
     }
     """
-    result = make_graphql_request(api_key, query, {"teamId": team_id})
-    cycles = result.get("data", {}).get("cycles", {}).get("nodes", [])
+    result = make_graphql_request(api_key, query, None)
+    all_cycles = result.get("data", {}).get("cycles", {}).get("nodes", [])
+
+    # Filter cycles that belong to the specified team
+    cycles = [c for c in all_cycles if c.get("team", {}).get("id") == team_id]
 
     for cycle in cycles:
         if cycle["name"] == cycle_name:
@@ -206,38 +231,54 @@ def get_or_create_labels(
     )
 
     # Get all existing labels for the team
+    # Note: We fetch all labels and filter in Python since IssueLabelFilter doesn't support team filtering
     query = """
-    query($teamId: ID!) {
-        issueLabels(filter: { team: { id: { eq: $teamId } } }) {
+    query {
+        issueLabels {
             nodes {
                 id
                 name
+                team {
+                    id
+                }
             }
         }
     }
     """
-    result = make_graphql_request(api_key, query, {"teamId": team_id})
-    existing_labels = result.get("data", {}).get("issueLabels", {}).get("nodes", [])
+    result = make_graphql_request(api_key, query, None)
+    all_labels = result.get("data", {}).get("issueLabels", {}).get("nodes", [])
+
+    # Filter labels that belong to the specified team or are workspace-wide (team is None)
+    existing_labels = [
+        label
+        for label in all_labels
+        if label.get("team") is None or label.get("team", {}).get("id") == team_id
+    ]
 
     click.echo(
         f"  [DEBUG] Found {len(existing_labels)} existing labels in team", err=True
     )
 
-    label_map = {label["name"]: label["id"] for label in existing_labels}
+    # Create case-insensitive label map (Linear treats label names as case-insensitive)
+    label_map = {
+        label["name"].lower(): (label["name"], label["id"]) for label in existing_labels
+    }
     label_ids = []
 
     for label_name in label_names:
-        if label_name in label_map:
+        label_key = label_name.lower()
+        if label_key in label_map:
+            existing_name, existing_id = label_map[label_key]
             click.echo(
-                f"  [DEBUG] Found existing label: {label_name} (ID: {label_map[label_name]})",
+                f"  [DEBUG] Found existing label: {existing_name} (ID: {existing_id})",
                 err=True,
             )
-            label_ids.append(label_map[label_name])
+            label_ids.append(existing_id)
         else:
             # Create new label
             click.echo(f"  [DEBUG] Creating new label: {label_name}", err=True)
             create_query = """
-            mutation($teamId: ID!, $name: String!) {
+            mutation($teamId: String, $name: String!) {
                 issueLabelCreate(input: { teamId: $teamId, name: $name }) {
                     success
                     issueLabel {
@@ -268,19 +309,26 @@ def get_or_create_labels(
 
 def get_workflow_state_id(api_key: str, team_id: str, state_name: str) -> str:
     """Get workflow state ID by name."""
+    # Note: We fetch all workflow states and filter in Python since WorkflowStateFilter doesn't support team filtering
     query = """
-    query($teamId: ID!) {
-        workflowStates(filter: { team: { id: { eq: $teamId } } }) {
+    query {
+        workflowStates {
             nodes {
                 id
                 name
                 type
+                team {
+                    id
+                }
             }
         }
     }
     """
-    result = make_graphql_request(api_key, query, {"teamId": team_id})
-    states = result.get("data", {}).get("workflowStates", {}).get("nodes", [])
+    result = make_graphql_request(api_key, query, None)
+    all_states = result.get("data", {}).get("workflowStates", {}).get("nodes", [])
+
+    # Filter states that belong to the specified team
+    states = [s for s in all_states if s.get("team", {}).get("id") == team_id]
 
     # Try exact match first
     for state in states:
@@ -369,9 +417,9 @@ def create_linear_issue(
         click.echo(f"\nCreating issue: {title}...", nl=False)
 
         mutation = """
-        mutation($teamId: ID!, $title: String!, $description: String,
-                 $priority: Int, $stateId: ID!, $estimate: Int, $projectId: ID,
-                 $cycleId: ID, $labelIds: [ID!]) {
+        mutation($teamId: String!, $title: String!, $description: String,
+                 $priority: Int, $stateId: String!, $estimate: Int, $projectId: String,
+                 $cycleId: String, $labelIds: [String!]) {
             issueCreate(input: {
                 teamId: $teamId
                 title: $title
@@ -417,7 +465,7 @@ def create_linear_issue(
         for i, comment_text in enumerate(comments, 1):
             try:
                 comment_mutation = """
-                mutation($issueId: ID!, $body: String!) {
+                mutation($issueId: String!, $body: String!) {
                     commentCreate(input: { issueId: $issueId, body: $body }) {
                         success
                         comment {

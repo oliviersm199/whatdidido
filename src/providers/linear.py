@@ -1,3 +1,4 @@
+import datetime
 import json
 from datetime import date
 from typing import Any, Generator, TypedDict
@@ -130,7 +131,7 @@ class LinearProvider(BaseProvider):
 
         # Convert dates to ISO strings for Linear API
         start_date_str = start_date.isoformat()
-        end_date_str = end_date.isoformat()
+        end_date_str = (end_date + datetime.timedelta(days=1)).isoformat()
 
         click.echo(f"Fetching Linear issues from {start_date_str} to {end_date_str}")
 

@@ -258,7 +258,6 @@ class OverallSummarizer:
         """
         summaries_text = self._format_summaries_for_prompt(summaries)
         prompt = OVERALL_SUMMARY_PROMPT.format(summaries=summaries_text)
-
         response = self.client.chat.completions.create(
             model=self.config.openai.openai_summary_model,
             messages=[{"role": "user", "content": prompt}],
