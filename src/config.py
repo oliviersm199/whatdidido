@@ -13,10 +13,6 @@ class JiraConfig(BaseModel):
     jira_api_key: str
 
 
-class GithubConfig(BaseModel):
-    github_token: str
-
-
 class LinearConfig(BaseModel):
     linear_api_key: str
 
@@ -30,7 +26,6 @@ class OpenAIConfig(BaseModel):
 
 class Config(BaseModel):
     jira: JiraConfig
-    github: GithubConfig
     linear: LinearConfig
     openai: OpenAIConfig
 
@@ -53,7 +48,6 @@ def get_config() -> Config:
         jira_username=os.getenv("JIRA_USERNAME", ""),
         jira_api_key=os.getenv("JIRA_API_KEY", ""),
     )
-    github_config = GithubConfig(github_token=os.getenv("GITHUB_TOKEN", ""))
     linear_config = LinearConfig(
         linear_api_key=os.getenv("LINEAR_API_KEY", ""),
     )
@@ -69,7 +63,6 @@ def get_config() -> Config:
 
     return Config(
         jira=jira_config,
-        github=github_config,
         linear=linear_config,
         openai=openai_config,
     )

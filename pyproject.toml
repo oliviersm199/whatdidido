@@ -5,14 +5,30 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "whatdidido"
 version = "0.1.0"
-description = "Add your description here"
+description = "Track your work across Jira and Linear. Generate AI-powered summaries of your activities."
 readme = "README.md"
 requires-python = ">=3.13"
+license = {text = "MIT"}
+authors = [
+    {name = "Olivier Morissette", email = "oliviersm199@gmail.com"}
+]
+keywords = ["jira", "linear", "productivity", "work-tracking", "ai", "openai", "cli"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business",
+    "Topic :: Utilities",
+    "Environment :: Console",
+]
 dependencies = [
     "click>=8.0.0",
     "filelock>=3.0.0",
     "jira>=3.0.0",
-    "pygithub>=2.8.1",
     "pytz>=2025.2",
     "questionary>=2.1.1",
     "python-dotenv>=1.1.1",
@@ -35,8 +51,14 @@ dev = [
     "pytest-cov>=6.0.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/oliviersm199/whatdididoagain"
+Repository = "https://github.com/oliviersm199/whatdididoagain"
+Issues = "https://github.com/oliviersm199/whatdididoagain/issues"
+Documentation = "https://github.com/oliviersm199/whatdididoagain#readme"
+
 [tool.setuptools]
-packages = ["models", "providers", "service_integrations"]
+packages = ["models", "providers", "service_integrations", "services", "utils"]
 package-dir = {"" = "src"}
 
 [tool.mypy]

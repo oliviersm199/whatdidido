@@ -28,7 +28,6 @@ The configuration system consists of three main components:
 2. **Config Reading** ([src/config.py:29-43](src/config.py#L29-L43))
 
    - Uses `python-dotenv` to load environment variables from the config file
-   - Provides strongly-typed config objects using Pydantic models
 
 3. **Config Writing** ([src/config.py:46-62](src/config.py#L46-L62))
    - Updates individual key-value pairs in the config file
@@ -44,11 +43,17 @@ The configuration system consists of three main components:
 | `JIRA_USERNAME` | Your Jira email/username | `your.email@company.com`            |
 | `JIRA_API_KEY`  | Jira API token           | `ATATTxxxxxxxxxxxxx`                |
 
-#### GitHub Configuration
+#### Linear Configuration
 
-| Variable       | Description                  | Example            |
-| -------------- | ---------------------------- | ------------------ |
-| `GITHUB_TOKEN` | GitHub personal access token | `ghp_xxxxxxxxxxxx` |
+| Variable         | Description      | Example            |
+| ---------------- | ---------------- | ------------------ |
+| `LINEAR_API_KEY` | Linear API token | `lin_xxxxxxxxxxxx` |
+
+#### OpenAI Configuration
+
+| Variable         | Description    | Example           |
+| ---------------- | -------------- | ----------------- |
+| `OPENAI_API_KEY` | OpenAI API key | `sk-xxxxxxxxxxxx` |
 
 ## Configuration Methods
 
@@ -62,12 +67,13 @@ whatdidido connect
 
 This will:
 
-1. Prompt you to select which integrations to configure
+1. Prompt you to select which integrations to configure (Jira, Linear)
 2. Guide you through entering credentials for each selected integration
-3. Automatically validate your credentials
-4. Save the configuration to `~/.whatdidido/config.env`
+3. Prompt you to configure service integrations (OpenAI)
+4. Automatically validate your credentials
+5. Save the configuration to `~/.whatdidido/config.env`
 
-The init command is smart:
+The connect command is smart:
 
 - It detects if an integration is already configured
 - It asks for confirmation before overwriting existing settings
@@ -94,7 +100,8 @@ You can also manually edit the config file directly:
    JIRA_URL=https://your-domain.atlassian.net
    JIRA_USERNAME=your.email@company.com
    JIRA_API_KEY=ATATTxxxxxxxxxxxxx
-   GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+   LINEAR_API_KEY=lin_xxxxxxxxxxxx
+   OPENAI_API_KEY=sk-xxxxxxxxxxxx
    ```
 
 ## Obtaining API Credentials
@@ -102,71 +109,25 @@ You can also manually edit the config file directly:
 ### Jira API Token
 
 1. Log in to your Atlassian account at https://id.atlassian.com
-2. Go to Security → API tokens
-3. Click "Create API token"
+2. Click on Profile in top right and navigate to "Account Settings"
+3. Click on "Security" and then click on "Create API token"
 4. Give it a name (e.g., "whatdidido")
 5. Copy the token immediately (you won't be able to see it again)
 
-### GitHub Personal Access Token
+### Linear API Token
 
-1. Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
-2. Click "Generate new token" → "Generate new token (classic)"
-3. Give it a descriptive name
-4. Select the required scopes (at minimum: `repo`, `read:user`)
-5. Click "Generate token"
-6. Copy the token immediately
+1. Log in to Linear at https://linear.app
+2. Navigate to Settings → API → security and access settings
+3. Under "Personal API keys", click "New API key"
+4. Give it a descriptive name (e.g., "whatdidido")
+5. Select the required scopes (at minimum: `read`)
+6. Click "Create"
+7. Copy the token immediately
 
-## Configuration Validation
+### OpenAI API Key
 
-The tool validates your configuration in two ways:
-
-1. **Configuration Check** ([src/providers/jira.py:13-19](src/providers/jira.py#L13-L19))
-
-   - Ensures all required fields are present
-   - Checked before attempting to sync
-
-2. **Authentication Check** ([src/providers/jira.py:41-53](src/providers/jira.py#L41-L53))
-   - Makes a test API call to verify credentials work
-   - Displays server version information on success
-   - Shows error message if authentication fails
-
-## Security Considerations
-
-- The config file contains sensitive credentials
-- The file is stored in your home directory (not in the project directory)
-- **Never commit the `~/.whatdidido/config.env` file to version control**
-- File permissions should be set to be readable only by your user:
-  ```bash
-  chmod 600 ~/.whatdidido/config.env
-  ```
-
-## Troubleshooting
-
-### "No authenticated integrations found"
-
-This means either:
-
-- You haven't run `init` yet
-- Your credentials are missing or incorrect
-- Your API tokens have expired
-
-**Solution:** Run `whatdidido connect` to reconfigure
-
-### Configuration not being recognized
-
-Check that:
-
-1. The config file exists: `ls -la ~/.whatdidido/config.env`
-2. The file has the correct format (KEY=VALUE pairs)
-3. There are no extra spaces around the `=` sign
-4. Values don't have quotes around them (unless the value itself contains quotes)
-
-### Testing your configuration
-
-You can test if your configuration is working by running:
-
-```bash
-whatdidido sync
-```
-
-This will attempt to authenticate with your configured integrations and show any errors.
+1. Go to https://platform.openai.com/api-keys
+2. Click "Create new secret key"
+3. Give it a descriptive name (e.g., "whatdidido")
+4. Click "Create secret key"
+5. Copy the key immediately (you won't be able to see it again)

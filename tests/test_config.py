@@ -5,7 +5,6 @@ from unittest.mock import patch
 
 from config import (
     Config,
-    GithubConfig,
     JiraConfig,
     LinearConfig,
     OpenAIConfig,
@@ -27,11 +26,6 @@ class TestConfigModels:
         assert config.jira_url == "https://example.atlassian.net"
         assert config.jira_username == "user@example.com"
         assert config.jira_api_key == "test_key"
-
-    def test_github_config_creation(self):
-        """Test GithubConfig model creation."""
-        config = GithubConfig(github_token="ghp_test_token")
-        assert config.github_token == "ghp_test_token"
 
     def test_linear_config_creation(self):
         """Test LinearConfig model creation."""
@@ -67,12 +61,10 @@ class TestConfigModels:
                 jira_username="user@example.com",
                 jira_api_key="jira_key",
             ),
-            github=GithubConfig(github_token="gh_token"),
             linear=LinearConfig(linear_api_key="linear_key"),
             openai=OpenAIConfig(openai_api_key="openai_key"),
         )
         assert config.jira.jira_url == "https://example.atlassian.net"
-        assert config.github.github_token == "gh_token"
         assert config.linear.linear_api_key == "linear_key"
         assert config.openai.openai_api_key == "openai_key"
 
@@ -100,7 +92,6 @@ class TestGetConfig:
                 assert config.jira.jira_url == "https://test.atlassian.net"
                 assert config.jira.jira_username == "test@example.com"
                 assert config.jira.jira_api_key == "jira_test_key"
-                assert config.github.github_token == "gh_test_token"
                 assert config.linear.linear_api_key == "linear_test_key"
                 assert config.openai.openai_api_key == "sk-test-key"
 
@@ -158,7 +149,6 @@ class TestGetConfig:
                     assert config.jira.jira_url == ""
                     assert config.jira.jira_username == ""
                     assert config.jira.jira_api_key == ""
-                    assert config.github.github_token == ""
                     assert config.linear.linear_api_key == ""
                     assert config.openai.openai_api_key == ""
 
@@ -257,7 +247,6 @@ class TestConfigIntegration:
                     # Now get config and verify
                     config = get_config()
                     assert config.jira.jira_url == "https://workflow.atlassian.net"
-                    assert config.github.github_token == "gh_workflow_token"
                     assert config.openai.openai_api_key == "sk-workflow-key"
                     assert (
                         config.openai.openai_base_url

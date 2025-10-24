@@ -30,7 +30,7 @@ registered_service_integrations = [OpenAIServiceIntegration]
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose logging")
 @click.pass_context
 def main(ctx, verbose):
-    """What did I do again? - Track your work across JIRA and GitHub"""
+    """What did I do again? - Track your work across Jira and Linear"""
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
     setup_logging(verbose=verbose)
@@ -121,9 +121,8 @@ def connect():
 )
 def sync(start_date: datetime | None, end_date: datetime | None, user: str | None):
     """
-    Sync issues and pull requests from Jira and Linear
+    Sync work items from Jira and Linear
     """
-    # Use SyncService to get authenticated providers
     sync_service = SyncService()
     authenticated_providers = sync_service.get_authenticated_providers(
         registered_integrations
@@ -240,7 +239,7 @@ def clean(confirm: bool):
 @main.command("report")
 def report():
     """
-    Generate a report of your activities from JIRA and GitHub
+    Generate a report of your activities from Jira and Linear
     """
     # Validate OpenAI API key is configured
     config = get_config()

@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 class WorkItem(BaseModel):
     """
-    Represents a work item from any provider (Jira, GitHub, etc.).
+    Represents a work item from any provider (Jira, Linear, etc.).
 
     This model is intentionally minimal and provider-agnostic. Only core fields
     that exist across all work tracking systems are included. Provider-specific
@@ -13,7 +13,7 @@ class WorkItem(BaseModel):
     """
 
     # Core identification
-    id: str = Field(description="Unique identifier (e.g., PROJ-123, #456)")
+    id: str = Field(description="Unique identifier (e.g., PROJ-123, ISSUE-456)")
     title: str = Field(description="Summary/title of the work item")
     description: str | None = Field(
         default=None, description="Full description/body of the work item"
@@ -25,7 +25,7 @@ class WorkItem(BaseModel):
     updated_at: str = Field(description="When the item was last updated (ISO 8601)")
 
     # Provider information
-    provider: str = Field(description="Source provider (e.g., Jira, GitHub)")
+    provider: str = Field(description="Source provider (e.g., Jira, Linear)")
 
     # Provider-specific data
     raw_data: dict[str, Any] = Field(
