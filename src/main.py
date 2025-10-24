@@ -182,9 +182,7 @@ def show_config():
     config_service = ConfigService(CONFIG_FILE)
 
     if not config_service.file_exists():
-        logger.info(
-            "No configuration file found. Please run 'connect' command first.", err=True
-        )
+        logger.info("No configuration file found. Please run 'connect' command first.")
         return
 
     logger.info(f"Configuration file: {CONFIG_FILE}\n")
@@ -244,10 +242,7 @@ def report():
     # Validate OpenAI API key is configured
     config = get_config()
     if not config.openai.openai_api_key:
-        logger.info(
-            "OpenAI API key is not set, please run the init.",
-            err=True,
-        )
+        logger.info("OpenAI API key is not set, please run the init.")
         return
 
     # Use ReportService to generate the report
