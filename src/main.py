@@ -81,14 +81,8 @@ def connect():
     if selected_services:
         logger.info("\nStarting setup for selected service integrations...")
 
-        # Ask if they want to validate
-        validate = questionary.confirm(
-            "Would you like to validate service configurations after setup?",
-            default=True,
-        ).ask()
-
         configured, errors = connect_service.setup_services(
-            selected_services, validate=validate
+            selected_services, validate=True
         )
 
         for service_name in configured:
