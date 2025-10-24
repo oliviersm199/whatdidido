@@ -19,8 +19,6 @@ Install via pip:
 pip install whatdidido
 ```
 
-For detailed installation instructions, see [INSTALL.md](INSTALL.md).
-
 ## Quick Start
 
 ### 1. Configure Your Integrations
