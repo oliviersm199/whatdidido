@@ -1,7 +1,6 @@
 # What Did I Do Again?
 
-[![PyPI version](https://badge.fury.io/py/whatdidido.svg)](https://badge.fury.io/py/whatdidido)
-[![Python 3.13+](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
+[![PyPI version](https://badge.fury.io/py/whatdidido.svg)](https://badge.fury.io/py/whatdidido.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Track your work across Jira and Linear. Generate AI-powered summaries of your activities.**
