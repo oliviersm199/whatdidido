@@ -20,6 +20,13 @@ def setup_logging(verbose: bool = False) -> None:
         handlers=[logging.StreamHandler(sys.stderr)],
     )
 
+    # Silence noisy third-party loggers
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("requests").setLevel(logging.WARNING)
+    logging.getLogger("openai").setLevel(logging.WARNING)
+
 
 def get_logger(name: str) -> logging.Logger:
     """
