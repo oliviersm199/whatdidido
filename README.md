@@ -109,14 +109,6 @@ whatdidido clean
 | `disconnect` | Remove integration credentials           |
 | `clean`      | Delete synced data files                 |
 
-## Supported Integrations
-
-### Data Sources (Ticketing Systems)
-
-![Jira](images/jira.png)
-
-![Linear](images/linear.png)
-
 ## Contributing
 
 We welcome contributions! To contribute:
