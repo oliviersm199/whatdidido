@@ -13,7 +13,14 @@
 
 ## Installation
 
-Install via pip:
+### Homebrew (macOS/Linux)
+
+```bash
+brew tap oliviersm199/whatdidido
+brew install whatdidido
+```
+
+### pip
 
 ```bash
 pip install whatdidido
@@ -106,9 +113,9 @@ whatdidido clean
 
 ### Data Sources (Ticketing Systems)
 
-- **Jira** - Full support
-- **Linear** - Full support
-- PENDING **GitHub** - Planned for future release
+![Jira](images/jira.png)
+
+![Linear](images/linear.png)
 
 ## Contributing
 
