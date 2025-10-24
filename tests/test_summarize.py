@@ -3,10 +3,12 @@ Tests for the summarization functionality.
 """
 
 import json
+import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
 
 from src.summarize import (
+    ContextWindowExceededError,
     WorkItemSummary,
     WorkItemSummarizer,
     OverallSummarizer,
@@ -373,6 +375,10 @@ class TestOverallSummarizer:
 
         mock_client = Mock()
         mock_client.chat.completions.create.return_value = mock_response
+        # Mock the models.retrieve method to return context window
+        mock_model_info = Mock()
+        mock_model_info.context_window = 8192
+        mock_client.models.retrieve.return_value = mock_model_info
         mock_openai_class.return_value = mock_client
 
         markdown_file = tmp_path / "output.md"
@@ -425,6 +431,10 @@ class TestOverallSummarizer:
 
         mock_client = Mock()
         mock_client.chat.completions.create.return_value = mock_response
+        # Mock the models.retrieve method to return context window
+        mock_model_info = Mock()
+        mock_model_info.context_window = 8192
+        mock_client.models.retrieve.return_value = mock_model_info
         mock_openai_class.return_value = mock_client
 
         # Mock console
@@ -488,11 +498,24 @@ class TestOverallSummarizer:
 
         mock_client = Mock()
         mock_client.chat.completions.create.return_value = mock_response
+        # Mock the models.retrieve method to return context window
+        mock_model_info = Mock()
+        mock_model_info.context_window = 8192
+        mock_client.models.retrieve.return_value = mock_model_info
         mock_openai_class.return_value = mock_client
 
         markdown_file = tmp_path / "nested" / "dir" / "output.md"
 
-        with patch("src.summarize.Console"):
+        with (
+            patch("src.summarize.Console"),
+            patch("src.summarize.Progress") as mock_progress_class,
+        ):
+            # Mock progress
+            mock_progress = Mock()
+            mock_progress.__enter__ = Mock(return_value=mock_progress)
+            mock_progress.__exit__ = Mock(return_value=False)
+            mock_progress_class.return_value = mock_progress
+
             summarizer = OverallSummarizer(markdown_file=markdown_file)
 
             summaries = [
@@ -511,3 +534,48 @@ class TestOverallSummarizer:
 
             assert markdown_file.exists()
             assert markdown_file.parent.exists()
+
+    @patch("src.summarize.get_config")
+    @patch("src.summarize.OpenAI")
+    def test_context_window_exceeded_error(
+        self, mock_openai_class, mock_get_config, tmp_path
+    ):
+        """Test that ContextWindowExceededError is raised when prompt is too large."""
+        mock_config = Mock()
+        mock_config.openai.openai_base_url = "https://api.openai.com/v1"
+        mock_config.openai.openai_api_key = "test-key"
+        mock_config.openai.openai_summary_model = "gpt-4"
+        mock_get_config.return_value = mock_config
+
+        mock_client = Mock()
+        # Mock a small context window
+        mock_model_info = Mock()
+        mock_model_info.context_window = 100  # Very small limit
+        mock_client.models.retrieve.return_value = mock_model_info
+        mock_openai_class.return_value = mock_client
+
+        markdown_file = tmp_path / "output.md"
+        summarizer = OverallSummarizer(markdown_file=markdown_file)
+
+        # Create many summaries to exceed the limit
+        summaries = [
+            WorkItemSummary(
+                work_item_id=f"TEST-{i}",
+                title=f"Test item {i} with a very long title to increase token count",
+                summary=f"This is a very detailed summary for item {i} with lots of words to make it long",
+                provider="jira",
+                created_at="2025-01-01T00:00:00Z",
+                updated_at="2025-01-01T00:00:00Z",
+                summarized_at="2025-01-21T12:00:00Z",
+            )
+            for i in range(50)  # Many items to exceed the limit
+        ]
+
+        # Should raise ContextWindowExceededError
+        with pytest.raises(ContextWindowExceededError) as exc_info:
+            summarizer._generate_overall_summary(summaries)
+
+        # Verify error message contains helpful information
+        error_message = str(exc_info.value)
+        assert "context window limit" in error_message
+        assert "reducing the date range" in error_message

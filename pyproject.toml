@@ -19,6 +19,7 @@ dependencies = [
     "pydantic>=2.12.3",
     "openai>=2.6.0",
     "rich>=13.0.0",
+    "tiktoken>=0.5.0",
 ]
 
 [project.scripts]

@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
+import tiktoken
 from filelock import FileLock
 from openai import OpenAI
 from pydantic import BaseModel, Field
@@ -72,6 +73,12 @@ Generate the complete markdown summary.
 SUMMARY_FILE = "whatdidido-summary.json"
 SUMMARY_LOCK = "whatdidido-summary.json.lock"  # Lock file without leading dot
 MARKDOWN_FILE = "whatdidido.md"
+
+
+class ContextWindowExceededError(Exception):
+    """Raised when the prompt exceeds the model's context window."""
+
+    pass
 
 
 class WorkItemSummary(BaseModel):
@@ -318,6 +325,47 @@ class OverallSummarizer:
         )
         self.markdown_file = markdown_file or Path(MARKDOWN_FILE)
 
+    def _get_model_context_limit(self, model_name: str) -> int:
+        """
+        Get the context window limit for a model from the OpenAI API.
+
+        Args:
+            model_name: The model name
+
+        Returns:
+            The context window size in tokens
+        """
+        try:
+            model_info = self.client.models.retrieve(model_name)
+            # The context_window attribute contains the max input tokens
+            if hasattr(model_info, "context_window"):
+                return model_info.context_window
+            # Fallback to a conservative default if not available
+            return 8192
+        except Exception:
+            # If we can't retrieve model info, use a conservative default
+            return 8192
+
+    def _count_tokens(self, text: str, model: str) -> int:
+        """
+        Count the number of tokens in a text string.
+
+        Args:
+            text: The text to count tokens for
+            model: The model name (used to get the correct tokenizer)
+
+        Returns:
+            The number of tokens
+        """
+        try:
+            # Try to get the encoding for the specific model
+            encoding = tiktoken.encoding_for_model(model)
+        except KeyError:
+            # Fall back to cl100k_base encoding (used by gpt-4, gpt-3.5-turbo)
+            encoding = tiktoken.get_encoding("cl100k_base")
+
+        return len(encoding.encode(text))
+
     def _format_summaries_for_prompt(self, summaries: list[WorkItemSummary]) -> str:
         """Format summaries into a text blob for the LLM."""
         formatted = []
@@ -338,11 +386,31 @@ class OverallSummarizer:
 
         Returns:
             The generated markdown summary
+
+        Raises:
+            ContextWindowExceededError: If the prompt exceeds the model's context window
         """
+        model = self.config.openai.openai_summary_model
         summaries_text = self._format_summaries_for_prompt(summaries)
         prompt = OVERALL_SUMMARY_PROMPT.format(summaries=summaries_text)
+
+        # Check if the prompt exceeds the model's context window
+        token_count = self._count_tokens(prompt, model)
+        context_limit = self._get_model_context_limit(model)
+
+        # Leave some buffer for the response (typically 2000-4000 tokens)
+        usable_limit = int(context_limit * 0.75)
+
+        if token_count > usable_limit:
+            raise ContextWindowExceededError(
+                f"The combined work item summaries ({token_count:,} tokens) exceed the "
+                f"model's context window limit ({context_limit:,} tokens, usable: {usable_limit:,}).\n\n"
+                f"To fix this, try reducing the date range when syncing work items to generate fewer summaries.\n"
+                f"For example: `whatdidido sync --start-date 2025-01-01 --end-date 2025-03-31`"
+            )
+
         response = self.client.chat.completions.create(
-            model=self.config.openai.openai_summary_model,
+            model=model,
             messages=[{"role": "user", "content": prompt}],
         )
 

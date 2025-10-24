@@ -1,7 +1,12 @@
 """Service for generating reports from work items."""
 
 from persist import DataStore
-from summarize import OverallSummarizer, WorkItemSummarizer, WorkItemSummary
+from summarize import (
+    ContextWindowExceededError,
+    OverallSummarizer,
+    WorkItemSummarizer,
+    WorkItemSummary,
+)
 
 
 class ReportResult:
@@ -80,6 +85,9 @@ class ReportService:
                 summary=overall_summary,
             )
 
+        except ContextWindowExceededError as e:
+            # Provide a clear error message for context window issues
+            return ReportResult(success=False, error=str(e))
         except Exception as e:
             return ReportResult(success=False, error=str(e))
 
