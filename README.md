@@ -8,15 +8,6 @@
 
 `whatdidido` is a command-line tool that syncs your work items from ticketing systems (Jira, Linear) and generates intelligent summaries using OpenAI. Perfect for status reports, performance reviews, and keeping track of what you've accomplished.
 
-## Features
-
-- **Multi-Platform Sync**: Connect to Jira and Linear simultaneously
-- **AI-Powered Summaries**: Generate narrative reports using OpenAI
-- **Secure**: Credentials and all data stored on your computer
-- **Fast Setup**: Interactive configuration wizard
-- **Flexible Reporting**: Filter by date range, user, and more
-- **Team-Friendly**: Track work for multiple team members
-
 ## Installation
 
 Install via pip:
