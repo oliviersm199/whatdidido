@@ -5,12 +5,16 @@ import questionary
 
 from config import get_config
 from models.fetch_params import FetchParams
-from persist import DataStore
 from providers import get_provider
 from providers.jira import JiraProvider
 from providers.linear import LinearProvider
 from service_integrations.openai import OpenAIServiceIntegration
-from summarize import OverallSummarizer, WorkItemSummarizer
+from services.clean_service import CleanService
+from services.config_service import ConfigService
+from services.connect_service import ConnectService
+from services.disconnect_service import DisconnectService
+from services.report_service import ReportService
+from services.sync_service import SyncService
 
 # Data source integrations (for syncing work items)
 registered_integrations = [JiraProvider, LinearProvider]
@@ -30,51 +34,61 @@ def connect():
     """
     Guided step by step instructions on how to setup repository
     """
+    connect_service = ConnectService()
+
     # Step 1: Setup data source integrations
-    available_integrations = [integration for integration in registered_integrations]
     provider_question = questionary.checkbox(
         "Which data sources would you like to connect?",
-        choices=[integration().get_name() for integration in available_integrations],
+        choices=[integration().get_name() for integration in registered_integrations],
     )
-    selected_integrations = provider_question.ask()
+    selected_integration_names = provider_question.ask()
 
-    click.echo("Starting setup for selected data sources...")
+    # Get provider instances for selected integrations
+    selected_providers = [get_provider(name) for name in selected_integration_names]
 
-    for integration in selected_integrations:
-        click.echo(f"Setting up {integration}...")
-        provider = get_provider(integration)
-        provider.setup()
+    if selected_providers:
+        click.echo("Starting setup for selected data sources...")
+        configured, errors = connect_service.setup_providers(selected_providers)
+
+        for provider_name in configured:
+            click.echo(f"✓ {provider_name} configured successfully")
+
+        for provider_name, error in errors.items():
+            click.echo(f"Error setting up {provider_name}: {error}", err=True)
 
     # Step 2: Setup service integrations (AI, notifications, etc.)
-    available_services = [service for service in registered_service_integrations]
     service_question = questionary.checkbox(
         "\nWhich service integrations would you like to configure?",
-        choices=[service().get_name() for service in available_services],
+        choices=[service().get_name() for service in registered_service_integrations],
     )
-    selected_services = service_question.ask()
+    selected_service_names = service_question.ask()
+
+    # Get service instances for selected services
+    selected_services = []
+    for service_name in selected_service_names:
+        for service_cls in registered_service_integrations:
+            if service_cls().get_name() == service_name:
+                selected_services.append(service_cls())
+                break
 
     if selected_services:
         click.echo("\nStarting setup for selected service integrations...")
 
-        for service_name in selected_services:
-            click.echo(f"\nSetting up {service_name}...")
-            # Find the service class
-            service_instance = None
-            for service_cls in available_services:
-                if service_cls().get_name() == service_name:
-                    service_instance = service_cls()
-                    break
+        # Ask if they want to validate
+        validate = questionary.confirm(
+            "Would you like to validate service configurations after setup?",
+            default=True,
+        ).ask()
 
-            if service_instance:
-                service_instance.setup()
-                # Optionally validate the configuration
-                if questionary.confirm(
-                    f"Would you like to validate {service_name} configuration?",
-                    default=True,
-                ).ask():
-                    service_instance.validate()
-            else:
-                click.echo(f"Error: Could not find service {service_name}", err=True)
+        configured, errors = connect_service.setup_services(
+            selected_services, validate=validate
+        )
+
+        for service_name in configured:
+            click.echo(f"✓ {service_name} configured successfully")
+
+        for service_name, error in errors.items():
+            click.echo(f"Error setting up {service_name}: {error}", err=True)
 
     click.echo("\n✓ Setup complete!")
 
@@ -102,21 +116,20 @@ def sync(start_date: datetime | None, end_date: datetime | None, user: str | Non
     """
     Sync issues and pull requests from Jira and Linear
     """
-    available_integrations = [integration for integration in registered_integrations]
-    authenticated_integrations = [
-        integration
-        for integration in available_integrations
-        if integration().is_configured() and integration().authenticate()
-    ]
-    if not authenticated_integrations:
+    # Use SyncService to get authenticated providers
+    sync_service = SyncService()
+    authenticated_providers = sync_service.get_authenticated_providers(
+        registered_integrations
+    )
+
+    if not authenticated_providers:
         click.echo(
             "No authenticated integrations found. Please run 'init' command first.",
             err=True,
         )
         return
-    joined_integrations = ", ".join(
-        [integration().get_name() for integration in authenticated_integrations]
-    )
+
+    joined_integrations = ", ".join([p.get_name() for p in authenticated_providers])
 
     # Show who we're syncing for
     user_msg = f" for user: {user}" if user else " (authenticated user)"
@@ -137,21 +150,18 @@ def sync(start_date: datetime | None, end_date: datetime | None, user: str | Non
         user_filter=user,
     )
 
-    data_store = DataStore()
+    # Use SyncService to sync all providers
+    results = sync_service.sync_all_providers(authenticated_providers, fetch_params)
 
-    for integration in authenticated_integrations:
-        integration_instance = integration()
-        provider_name = integration_instance.get_name()
-
-        click.echo(f"Syncing data from {provider_name}...")
-        try:
-            count = data_store.save_provider_data(integration_instance, fetch_params)
+    # Display results
+    for result in results:
+        if result.success:
             click.echo(
-                f"Data sync from {provider_name} complete! Saved {count} work items."
+                f"Data sync from {result.provider_name} complete! Saved {result.count} work items."
             )
-        except Exception as e:
+        else:
             click.echo(
-                f"Error syncing data from {provider_name}: {e}",
+                f"Error syncing data from {result.provider_name}: {result.error}",
                 err=True,
             )
 
@@ -165,7 +175,9 @@ def show_config():
     """
     from config import CONFIG_FILE
 
-    if not CONFIG_FILE.exists():
+    config_service = ConfigService(CONFIG_FILE)
+
+    if not config_service.file_exists():
         click.echo(
             "No configuration file found. Please run 'init' command first.", err=True
         )
@@ -173,39 +185,13 @@ def show_config():
 
     click.echo(f"Configuration file: {CONFIG_FILE}\n")
 
-    with open(CONFIG_FILE, "r") as f:
-        lines = f.readlines()
-
-    if not lines:
+    if config_service.is_empty():
         click.echo("Configuration file is empty.")
         return
 
-    # Keys that should be anonymized
-    sensitive_keys = ["API_KEY", "TOKEN", "PASSWORD"]
-
+    lines = config_service.get_config_lines()
     for line in lines:
-        line = line.strip()
-        if not line or line.startswith("#"):
-            click.echo(line)
-            continue
-
-        if "=" in line:
-            key, value = line.split("=", 1)
-            # Check if this is a sensitive key
-            if any(sensitive in key.upper() for sensitive in sensitive_keys):
-                if value:
-                    # Show first 4 and last 4 characters
-                    if len(value) > 8:
-                        anonymized = f"{value[:4]}...{value[-4:]}"
-                    else:
-                        anonymized = "****"
-                    click.echo(f"{key}={anonymized}")
-                else:
-                    click.echo(f"{key}=")
-            else:
-                click.echo(line)
-        else:
-            click.echo(line)
+        click.echo(line)
 
 
 @main.command("clean")
@@ -214,23 +200,9 @@ def clean(confirm: bool):
     """
     Clean up whatdidido data files (JSON data and markdown reports)
     """
-    from pathlib import Path
+    clean_service = CleanService()
 
-    # Files to clean up
-    json_file = Path("whatdidido.json")
-    summary_file = Path("whatdidido-summary.json")
-    json_lock = Path("whatdidido.json.lock")
-    md_file = Path("whatdidido.md")
-
-    files_to_delete = []
-    if json_file.exists():
-        files_to_delete.append(json_file)
-    if summary_file.exists():
-        files_to_delete.append(summary_file)
-    if json_lock.exists():
-        files_to_delete.append(json_lock)
-    if md_file.exists():
-        files_to_delete.append(md_file)
+    files_to_delete = clean_service.get_files_to_clean()
 
     if not files_to_delete:
         click.echo("No whatdidido files found to clean up.")
@@ -248,15 +220,16 @@ def clean(confirm: bool):
             click.echo("Cleanup cancelled.")
             return
 
-    # Delete files
-    for file in files_to_delete:
-        try:
-            file.unlink()
-            click.echo(f"Deleted: {file}")
-        except Exception as e:
-            click.echo(f"Error deleting {file}: {e}", err=True)
+    # Delete files using CleanService
+    result = clean_service.clean()
 
-    click.echo("\nCleanup complete!")
+    if result.success:
+        for file in result.deleted_files:
+            click.echo(f"Deleted: {file}")
+        click.echo("\nCleanup complete!")
+    else:
+        for file, error in result.errors.items():
+            click.echo(f"Error deleting {file}: {error}", err=True)
 
 
 @main.command("report")
@@ -271,31 +244,22 @@ def report():
             "OpenAI API key is not set, please run the init.",
             err=True,
         )
-
-    data_store = DataStore()
-    work_items_by_provider = data_store.get_all_data()
-
-    if not work_items_by_provider:
-        click.echo("No work items found. Please run 'sync' command first.", err=True)
         return
 
-    # Flatten all work items from all providers into a single list
-    all_work_items = []
-    for _, items in work_items_by_provider.items():
-        all_work_items.extend(items)
+    # Use ReportService to generate the report
+    report_service = ReportService()
 
-    click.echo(
-        f"Found {len(all_work_items)} work items across {len(work_items_by_provider)} provider(s)."
-    )
     click.echo("Generating summaries for each work item...\n")
 
-    summarizer = WorkItemSummarizer()
-    work_item_summaries = summarizer.summarize_work_items(all_work_items)
+    result = report_service.generate_report()
 
-    click.echo("\nGenerating overall summary...")
-    overall_summarizer = OverallSummarizer()
-    overall_summarizer.generate_and_save_summary(work_item_summaries)
+    if not result.success:
+        click.echo(f"Error generating report: {result.error}", err=True)
+        return
 
+    click.echo(
+        f"Found {result.work_item_count} work items across {result.provider_count} provider(s)."
+    )
     click.echo("\nReport generation complete. Summary saved to whatdidido.md")
 
 
@@ -316,6 +280,8 @@ def disconnect(data_sources: bool, services: bool, confirm: bool):
     Disconnect (wipe) data source and/or service integrations
     """
     from config import CONFIG_FILE
+
+    disconnect_service = DisconnectService()
 
     # If neither flag is set, ask the user what they want to disconnect
     if not data_sources and not services:
@@ -339,31 +305,23 @@ def disconnect(data_sources: bool, services: bool, confirm: bool):
         click.echo("No configuration file found. Nothing to disconnect.")
         return
 
-    # Build list of what will be removed
-    items_to_remove = []
+    # Get configured providers and services
+    provider_classes = registered_integrations if data_sources else []
+    service_classes = registered_service_integrations if services else []
 
-    if data_sources:
-        for integration in registered_integrations:
-            integration_instance = integration()
-            if integration_instance.is_configured():
-                items_to_remove.append(
-                    f"  - {integration_instance.get_name()} data source"
-                )
+    configured_providers = disconnect_service.get_configured_providers(provider_classes)
+    configured_services = disconnect_service.get_configured_services(service_classes)
 
-    if services:
-        for service in registered_service_integrations:
-            service_instance = service()
-            if service_instance.is_configured():
-                items_to_remove.append(f"  - {service_instance.get_name()} service")
-
-    if not items_to_remove:
+    if not configured_providers and not configured_services:
         click.echo("No configured integrations found to disconnect.")
         return
 
     # Show what will be disconnected
     click.echo("The following integrations will be disconnected:")
-    for item in items_to_remove:
-        click.echo(item)
+    for provider in configured_providers:
+        click.echo(f"  - {provider.get_name()} data source")
+    for service in configured_services:
+        click.echo(f"  - {service.get_name()} service")
 
     # Confirm with user
     if not confirm:
@@ -376,35 +334,25 @@ def disconnect(data_sources: bool, services: bool, confirm: bool):
             return
 
     # Perform the disconnect
-    disconnected_count = 0
+    result = disconnect_service.disconnect_all(
+        provider_classes=provider_classes,
+        service_classes=service_classes,
+    )
 
-    if data_sources:
-        for integration in registered_integrations:
-            integration_instance = integration()
-            if integration_instance.is_configured():
-                provider_name = integration_instance.get_name()
+    # Display results
+    for provider_name in result.disconnected_providers:
+        click.echo(f"Disconnected: {provider_name}")
 
-                try:
-                    integration_instance.disconnect()
-                    click.echo(f"Disconnected: {provider_name}")
-                    disconnected_count += 1
-                except Exception as e:
-                    click.echo(f"Error disconnecting {provider_name}: {e}", err=True)
+    for service_name in result.disconnected_services:
+        click.echo(f"Disconnected: {service_name}")
 
-    if services:
-        for service in registered_service_integrations:
-            service_instance = service()
-            if service_instance.is_configured():
-                service_name = service_instance.get_name()
+    # Display errors
+    for name, error in result.errors.items():
+        click.echo(f"Error disconnecting {name}: {error}", err=True)
 
-                try:
-                    service_instance.disconnect()
-                    click.echo(f"Disconnected: {service_name}")
-                    disconnected_count += 1
-                except Exception as e:
-                    click.echo(f"Error disconnecting {service_name}: {e}", err=True)
-
-    click.echo(f"\nDisconnect complete! Removed {disconnected_count} integration(s).")
+    click.echo(
+        f"\nDisconnect complete! Removed {result.total_disconnected} integration(s)."
+    )
     click.echo("Run 'init' to reconnect any integrations.")
 
 

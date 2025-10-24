@@ -274,4 +274,3 @@ class TestWithLockCleanup:
         assert result == "test"
         assert execution_order == ["test_start", "test_end"]
         assert not lock_file.exists()
-        assert not lock_file.exists()
