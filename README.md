@@ -16,8 +16,6 @@ Install via pip:
 pip install whatdidido
 ```
 
-**Requirements:** Python 3.13 or higher
-
 For detailed installation instructions, see [INSTALL.md](INSTALL.md).
 
 ## Quick Start
