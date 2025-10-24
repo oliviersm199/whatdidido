@@ -92,17 +92,6 @@ For comprehensive usage instructions, see [USER_GUIDE.md](USER_GUIDE.md).
 - **Linear** - Full support
 - PENDING **GitHub** - Planned for future release
 
-### Service Integrations
-
-- **OpenAI** - For AI-powered report generation
-- **OpenRouter** - Same as OpenAI, support for cha
-
-## Requirements
-
-- Python 3.13 or higher
-- API credentials for at least one data source (Jira or Linear)
-- OpenAI API key (optional, required for `report` command)
-
 ## Contributing
 
 We welcome contributions! To contribute:
