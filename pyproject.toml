@@ -59,6 +59,7 @@ Documentation = "https://github.com/oliviersm199/whatdididoagain#readme"
 
 [tool.setuptools]
 packages = ["models", "providers", "service_integrations", "services", "utils"]
+py-modules = ["main", "config", "logger"]
 package-dir = {"" = "src"}
 
 [tool.mypy]
