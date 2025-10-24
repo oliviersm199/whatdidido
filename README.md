@@ -5,6 +5,8 @@
 
 **Track your work across Jira and Linear. Generate AI-powered summaries of your activities.**
 
+** Runs 100% locally on your machine. Bring your own API keys (BYOK) - your credentials stay under your control.**
+
 `whatdidido` is a command-line tool that syncs your work items from ticketing systems (Jira, Linear) and generates intelligent summaries using OpenAI. Perfect for status reports, performance reviews, and keeping track of what you've accomplished.
 
 ![Example Output](images/exampleOutput.png)
@@ -147,12 +149,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - **Issues**: [GitHub Issues](https://github.com/oliviersm199/whatdididoagain/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/oliviersm199/whatdididoagain/discussions)
-
-## Roadmap
-
-- [ ] GitHub integration support
-- [ ] GitLab integration support
-- [ ] Slack notifications
-- [ ] Custom report templates
-- [ ] Export to multiple formats (PDF, HTML)
-- [ ] Team analytics and insights
