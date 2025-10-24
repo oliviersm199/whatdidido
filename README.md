@@ -102,12 +102,6 @@ whatdidido clean
 | `disconnect` | Remove integration credentials           |
 | `clean`      | Delete synced data files                 |
 
-For comprehensive usage instructions, see [USER_GUIDE.md](USER_GUIDE.md).
-
-## Documentation
-
-- **[Configuration Guide](CONFIG.md)** - How to obtain and configure API credentials
-
 ## Supported Integrations
 
 ### Data Sources (Ticketing Systems)
