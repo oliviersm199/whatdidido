@@ -46,15 +46,16 @@ class TestOpenAIServiceIntegration:
         assert service.is_configured() is False
 
     @patch("src.service_integrations.openai.update_config")
-    @patch("src.service_integrations.openai.click.confirm")
-    @patch("src.service_integrations.openai.click.prompt")
-    @patch("src.service_integrations.openai.click.echo")
-    def test_setup_basic(
-        self, mock_echo, mock_prompt, mock_confirm, mock_update_config
-    ):
+    @patch("src.service_integrations.openai.questionary.password")
+    @patch("src.service_integrations.openai.questionary.confirm")
+    def test_setup_basic(self, mock_confirm, mock_password, mock_update_config):
         """Test basic setup with no custom options."""
-        mock_prompt.return_value = "test-api-key"
-        mock_confirm.side_effect = [False, False]  # No custom URL, no custom models
+        # Mock user input
+        mock_password.return_value.ask.return_value = "test-api-key"
+        mock_confirm.return_value.ask.side_effect = [
+            False,
+            False,
+        ]  # No custom URL, no custom models
 
         service = OpenAIServiceIntegration()
         service.setup()
@@ -66,18 +67,20 @@ class TestOpenAIServiceIntegration:
         )
 
     @patch("src.service_integrations.openai.update_config")
-    @patch("src.service_integrations.openai.click.confirm")
-    @patch("src.service_integrations.openai.click.prompt")
-    @patch("src.service_integrations.openai.click.echo")
+    @patch("src.service_integrations.openai.questionary.password")
+    @patch("src.service_integrations.openai.questionary.confirm")
+    @patch("src.service_integrations.openai.questionary.text")
     def test_setup_with_custom_url(
-        self, mock_echo, mock_prompt, mock_confirm, mock_update_config
+        self, mock_text, mock_confirm, mock_password, mock_update_config
     ):
         """Test setup with custom base URL."""
-        mock_prompt.side_effect = [
-            "test-api-key",
-            "https://custom.openai.com/v1",
-        ]
-        mock_confirm.side_effect = [True, False]  # Custom URL, no custom models
+        # Mock user input
+        mock_password.return_value.ask.return_value = "test-api-key"
+        mock_confirm.return_value.ask.side_effect = [
+            True,
+            False,
+        ]  # Yes custom URL, no custom models
+        mock_text.return_value.ask.return_value = "https://custom.openai.com/v1"
 
         service = OpenAIServiceIntegration()
         service.setup()
@@ -88,19 +91,23 @@ class TestOpenAIServiceIntegration:
         )
 
     @patch("src.service_integrations.openai.update_config")
-    @patch("src.service_integrations.openai.click.confirm")
-    @patch("src.service_integrations.openai.click.prompt")
-    @patch("src.service_integrations.openai.click.echo")
+    @patch("src.service_integrations.openai.questionary.password")
+    @patch("src.service_integrations.openai.questionary.confirm")
+    @patch("src.service_integrations.openai.questionary.text")
     def test_setup_with_custom_models(
-        self, mock_echo, mock_prompt, mock_confirm, mock_update_config
+        self, mock_text, mock_confirm, mock_password, mock_update_config
     ):
         """Test setup with custom model configuration."""
-        mock_prompt.side_effect = [
-            "test-api-key",
+        # Mock user input
+        mock_password.return_value.ask.return_value = "test-api-key"
+        mock_confirm.return_value.ask.side_effect = [
+            False,
+            True,
+        ]  # No custom URL, custom models
+        mock_text.return_value.ask.side_effect = [
             "gpt-4-turbo",  # workitem model
             "gpt-4",  # overall model
         ]
-        mock_confirm.side_effect = [False, True]  # No custom URL, custom models
 
         service = OpenAIServiceIntegration()
         service.setup()
@@ -112,20 +119,24 @@ class TestOpenAIServiceIntegration:
         mock_update_config.assert_any_call("OPENAI_SUMMARY_MODEL", "gpt-4")
 
     @patch("src.service_integrations.openai.update_config")
-    @patch("src.service_integrations.openai.click.confirm")
-    @patch("src.service_integrations.openai.click.prompt")
-    @patch("src.service_integrations.openai.click.echo")
+    @patch("src.service_integrations.openai.questionary.password")
+    @patch("src.service_integrations.openai.questionary.confirm")
+    @patch("src.service_integrations.openai.questionary.text")
     def test_setup_with_all_custom_options(
-        self, mock_echo, mock_prompt, mock_confirm, mock_update_config
+        self, mock_text, mock_confirm, mock_password, mock_update_config
     ):
         """Test setup with all custom options enabled."""
-        mock_prompt.side_effect = [
-            "test-api-key",
-            "https://azure.openai.com/v1",
-            "gpt-4-turbo",
-            "gpt-4",
+        # Mock user input
+        mock_password.return_value.ask.return_value = "test-api-key"
+        mock_confirm.return_value.ask.side_effect = [
+            True,
+            True,
+        ]  # Yes custom URL, yes custom models
+        mock_text.return_value.ask.side_effect = [
+            "https://azure.openai.com/v1",  # custom base URL
+            "gpt-4-turbo",  # workitem model
+            "gpt-4",  # overall model
         ]
-        mock_confirm.side_effect = [True, True]  # Custom URL and models
 
         service = OpenAIServiceIntegration()
         service.setup()
@@ -140,8 +151,7 @@ class TestOpenAIServiceIntegration:
         mock_update_config.assert_any_call("OPENAI_SUMMARY_MODEL", "gpt-4")
 
     @patch("src.service_integrations.openai.get_config")
-    @patch("src.service_integrations.openai.click.echo")
-    def test_validate_not_configured(self, mock_echo, mock_get_config):
+    def test_validate_not_configured(self, mock_get_config):
         """Test validate when service is not configured."""
         config = Mock()
         config.openai.openai_api_key = ""
@@ -154,8 +164,7 @@ class TestOpenAIServiceIntegration:
 
     @patch("src.service_integrations.openai.get_config")
     @patch("src.service_integrations.openai.OpenAI")
-    @patch("src.service_integrations.openai.click.echo")
-    def test_validate_success(self, mock_echo, mock_openai_class, mock_get_config):
+    def test_validate_success(self, mock_openai_class, mock_get_config):
         """Test successful validation."""
         config = Mock()
         config.openai.openai_api_key = "test-api-key"
@@ -178,8 +187,7 @@ class TestOpenAIServiceIntegration:
 
     @patch("src.service_integrations.openai.get_config")
     @patch("src.service_integrations.openai.OpenAI")
-    @patch("src.service_integrations.openai.click.echo")
-    def test_validate_failure(self, mock_echo, mock_openai_class, mock_get_config):
+    def test_validate_failure(self, mock_openai_class, mock_get_config):
         """Test validation failure when API call fails."""
         config = Mock()
         config.openai.openai_api_key = "test-api-key"
@@ -211,10 +219,7 @@ class TestOpenAIServiceIntegration:
 
     @patch("src.service_integrations.openai.get_config")
     @patch("src.service_integrations.openai.OpenAI")
-    @patch("src.service_integrations.openai.click.echo")
-    def test_validate_with_custom_base_url(
-        self, mock_echo, mock_openai_class, mock_get_config
-    ):
+    def test_validate_with_custom_base_url(self, mock_openai_class, mock_get_config):
         """Test validation with custom base URL."""
         config = Mock()
         config.openai.openai_api_key = "test-api-key"

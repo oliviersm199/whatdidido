@@ -7,7 +7,6 @@ Summarizes work items through a 3 step flow:
 """
 
 import json
-import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
@@ -19,16 +18,19 @@ from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.markdown import Markdown
 from rich.progress import (
+    BarColumn,
     Progress,
     SpinnerColumn,
-    TextColumn,
-    BarColumn,
     TaskProgressColumn,
+    TextColumn,
 )
 
 from config import get_config
+from logger import get_logger
 from models.work_item import WorkItem
 from utils.lock_utils import with_lock_cleanup
+
+logger = get_logger(__name__)
 
 WORK_ITEM_SUMMARY_PROMPT = """
 You are helping a software engineer prepare for their performance review by summarizing their work.
@@ -279,10 +281,7 @@ Raw Provider Data:
                     except Exception as e:
                         work_item = future_to_work_item[future]
                         progress.stop()
-                        print(
-                            f"Error summarizing {work_item.id}: {str(e)}",
-                            file=sys.stderr,
-                        )
+                        logger.error(f"Error summarizing {work_item.id}: {str(e)}")
                         raise
 
         # Persist all summaries

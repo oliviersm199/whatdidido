@@ -35,10 +35,7 @@ class TestLinearProvider:
 
     @patch("src.providers.linear.get_config")
     @patch("src.providers.linear.requests.post")
-    @patch("src.providers.linear.click.echo")
-    def test_authenticate_success(
-        self, mock_echo, mock_post, mock_get_config, mock_linear_config
-    ):
+    def test_authenticate_success(self, mock_post, mock_get_config, mock_linear_config):
         """Test successful authentication with Linear."""
         mock_get_config.return_value = mock_linear_config
 
@@ -64,10 +61,7 @@ class TestLinearProvider:
 
     @patch("src.providers.linear.get_config")
     @patch("src.providers.linear.requests.post")
-    @patch("src.providers.linear.click.echo")
-    def test_authenticate_failure(
-        self, mock_echo, mock_post, mock_get_config, mock_linear_config
-    ):
+    def test_authenticate_failure(self, mock_post, mock_get_config, mock_linear_config):
         """Test failed authentication with Linear."""
         mock_get_config.return_value = mock_linear_config
 
@@ -80,9 +74,8 @@ class TestLinearProvider:
 
     @patch("src.providers.linear.get_config")
     @patch("src.providers.linear.requests.post")
-    @patch("src.providers.linear.click.echo")
     def test_make_graphql_request_success(
-        self, mock_echo, mock_post, mock_get_config, mock_linear_config
+        self, mock_post, mock_get_config, mock_linear_config
     ):
         """Test making a successful GraphQL request."""
         mock_get_config.return_value = mock_linear_config
@@ -103,9 +96,8 @@ class TestLinearProvider:
 
     @patch("src.providers.linear.get_config")
     @patch("src.providers.linear.requests.post")
-    @patch("src.providers.linear.click.echo")
     def test_make_graphql_request_with_errors(
-        self, mock_echo, mock_post, mock_get_config, mock_linear_config
+        self, mock_post, mock_get_config, mock_linear_config
     ):
         """Test GraphQL request with errors in response."""
         mock_get_config.return_value = mock_linear_config
@@ -127,10 +119,8 @@ class TestLinearProvider:
 
     @patch("src.providers.linear.get_config")
     @patch("src.providers.linear.requests.post")
-    @patch("src.providers.linear.click.echo")
     def test_fetch_items_with_user_filter(
         self,
-        mock_echo,
         mock_post,
         mock_get_config,
         mock_linear_config,
@@ -183,10 +173,8 @@ class TestLinearProvider:
 
     @patch("src.providers.linear.get_config")
     @patch("src.providers.linear.requests.post")
-    @patch("src.providers.linear.click.echo")
     def test_fetch_items_without_user_filter(
         self,
-        mock_echo,
         mock_post,
         mock_get_config,
         mock_linear_config,
@@ -226,10 +214,8 @@ class TestLinearProvider:
 
     @patch("src.providers.linear.get_config")
     @patch("src.providers.linear.requests.post")
-    @patch("src.providers.linear.click.echo")
     def test_fetch_items_pagination(
         self,
-        mock_echo,
         mock_post,
         mock_get_config,
         mock_linear_config,

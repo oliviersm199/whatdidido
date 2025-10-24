@@ -2,14 +2,16 @@ import datetime
 import json
 from typing import Any, Generator, TypedDict
 
-import click
 import questionary
 import requests
 
 from config import get_config, update_config
+from logger import get_logger
 from models.fetch_params import FetchParams
 from models.work_item import WorkItem
 from providers.base import BaseProvider
+
+logger = get_logger(__name__)
 
 
 class CommentData(TypedDict):
@@ -31,16 +33,16 @@ class LinearProvider(BaseProvider):
         is_configured = self.is_configured()
         confirm_configured = False
         if is_configured:
-            confirm_configured = click.confirm(
+            confirm_configured = questionary.confirm(
                 "Linear is already configured. Do you want to reconfigure it?",
                 default=False,
-            )
+            ).ask()
         if not is_configured or confirm_configured:
             credentials = ask_linear_credentials()
             update_config("LINEAR_API_KEY", credentials["api_key"])
 
         if self.authenticate():
-            click.echo("Linear has been successfully configured.")
+            logger.info("Linear has been successfully configured.")
 
     def authenticate(self) -> bool:
         config = get_config()
@@ -61,7 +63,7 @@ class LinearProvider(BaseProvider):
             self._make_graphql_request(query)
             return True
         except Exception as e:
-            click.echo(f"Failed to authenticate with Linear: {e}", err=True)
+            logger.error(f"Failed to authenticate with Linear: {e}")
             return False
 
     def _make_graphql_request(self, query: str, variables: dict | None = None) -> dict:
@@ -82,34 +84,32 @@ class LinearProvider(BaseProvider):
             try:
                 response.json()
             except Exception as json_error:
-                click.echo(f"Response Body (raw): {response.text[:1000]}", err=True)
-                click.echo(f"JSON parsing error: {json_error}", err=True)
+                logger.error(f"Response Body (raw): {response.text[:1000]}")
+                logger.error(f"JSON parsing error: {json_error}")
 
             # Raise for HTTP errors (will include response body in error)
             response.raise_for_status()
 
             result = response.json()
             if "errors" in result:
-                click.echo("\n=== GraphQL Errors Detected ===", err=True)
-                click.echo(
-                    f"Errors: {json.dumps(result['errors'], indent=2)}", err=True
-                )
+                logger.error("\n=== GraphQL Errors Detected ===")
+                logger.error(f"Errors: {json.dumps(result['errors'], indent=2)}")
                 raise Exception(f"GraphQL errors: {result['errors']}")
 
             return result
 
         except requests.exceptions.HTTPError as http_err:
-            click.echo("\n=== HTTP Error ===", err=True)
-            click.echo(f"HTTP Error: {http_err}", err=True)
-            click.echo(f"Response Text: {response.text}", err=True)
+            logger.error("\n=== HTTP Error ===")
+            logger.error(f"HTTP Error: {http_err}")
+            logger.error(f"Response Text: {response.text}")
             raise
         except requests.exceptions.RequestException as req_err:
-            click.echo("\n=== Request Error ===", err=True)
-            click.echo(f"Request Error: {req_err}", err=True)
+            logger.error("\n=== Request Error ===")
+            logger.error(f"Request Error: {req_err}")
             raise
         except Exception as e:
-            click.echo("\n=== Unexpected Error ===", err=True)
-            click.echo(f"Error: {e}", err=True)
+            logger.error("\n=== Unexpected Error ===")
+            logger.error(f"Error: {e}")
             raise
 
     def fetch_items(self, params: FetchParams) -> Generator[WorkItem, None, None]:
@@ -130,7 +130,7 @@ class LinearProvider(BaseProvider):
         start_date_str = params.start_date.isoformat()
         end_date_str = (params.end_date + datetime.timedelta(days=1)).isoformat()
 
-        click.echo(f"Fetching Linear issues from {start_date_str} to {end_date_str}")
+        logger.info(f"Fetching Linear issues from {start_date_str} to {end_date_str}")
 
         # Get user ID for filtering
         if params.user_filter:
@@ -152,15 +152,14 @@ class LinearProvider(BaseProvider):
             users = user_response.get("data", {}).get("users", {}).get("nodes", [])
 
             if not users:
-                click.echo(
-                    f"Warning: No user found with email '{params.user_filter}'. Fetching issues anyway.",
-                    err=True,
+                logger.warning(
+                    f"Warning: No user found with email '{params.user_filter}'. Fetching issues anyway."
                 )
                 user_id = None
             else:
                 user_id = users[0]["id"]
                 user_name = users[0].get("name", params.user_filter)
-                click.echo(
+                logger.info(
                     f"Fetching issues for user: {user_name} ({params.user_filter})"
                 )
         else:
@@ -310,7 +309,7 @@ class LinearProvider(BaseProvider):
                     yield work_item
 
             except Exception as e:
-                click.echo(f"Error fetching Linear issues: {e}", err=True)
+                logger.error(f"Error fetching Linear issues: {e}")
                 break
 
     def _convert_linear_issue_to_work_item(self, issue: dict[str, Any]) -> WorkItem:

@@ -61,7 +61,7 @@ class TestJiraProvider:
 
     @patch("src.providers.jira.get_config")
     @patch("src.providers.jira.jira.JIRA")
-    @patch("src.providers.jira.click.echo")
+    @patch("src.providers.jira.logger")
     def test_authenticate_success(
         self, mock_echo, mock_jira_class, mock_get_config, mock_jira_config
     ):
@@ -85,7 +85,7 @@ class TestJiraProvider:
 
     @patch("src.providers.jira.get_config")
     @patch("src.providers.jira.jira.JIRA")
-    @patch("src.providers.jira.click.echo")
+    @patch("src.providers.jira.logger")
     def test_authenticate_failure(
         self, mock_echo, mock_jira_class, mock_get_config, mock_jira_config
     ):
@@ -103,7 +103,7 @@ class TestJiraProvider:
 
     @patch("src.providers.jira.get_config")
     @patch("src.providers.jira.jira.JIRA")
-    @patch("src.providers.jira.click.echo")
+    @patch("src.providers.jira.logger")
     def test_fetch_items_with_user_filter(
         self,
         mock_echo,
@@ -139,7 +139,7 @@ class TestJiraProvider:
 
     @patch("src.providers.jira.get_config")
     @patch("src.providers.jira.jira.JIRA")
-    @patch("src.providers.jira.click.echo")
+    @patch("src.providers.jira.logger")
     def test_fetch_items_without_user_filter(
         self,
         mock_echo,
@@ -172,7 +172,7 @@ class TestJiraProvider:
 
     @patch("src.providers.jira.get_config")
     @patch("src.providers.jira.jira.JIRA")
-    @patch("src.providers.jira.click.echo")
+    @patch("src.providers.jira.logger")
     def test_fetch_items_pagination(
         self,
         mock_echo,
@@ -206,7 +206,7 @@ class TestJiraProvider:
 
     @patch("src.providers.jira.get_config")
     @patch("src.providers.jira.jira.JIRA")
-    @patch("src.providers.jira.click.echo")
+    @patch("src.providers.jira.logger")
     def test_fetch_items_no_authentication(
         self,
         mock_echo,

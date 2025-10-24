@@ -1,13 +1,15 @@
 from typing import Generator, TypedDict
 
-import click
 import jira
 import questionary
 
 from config import get_config, update_config
+from logger import get_logger
 from models.fetch_params import FetchParams
 from models.work_item import WorkItem
 from providers.base import BaseProvider
+
+logger = get_logger(__name__)
 
 
 class CommentData(TypedDict):
@@ -33,10 +35,10 @@ class JiraProvider(BaseProvider):
         is_configured = self.is_configured()
         confirm_configured = False
         if is_configured:
-            confirm_configured = click.confirm(
+            confirm_configured = questionary.confirm(
                 "Jira is already configured. Do you want to reconfigure it?",
                 default=False,
-            )
+            ).ask()
         if not is_configured or confirm_configured:
             credentials = ask_jira_credentials()
             update_config("JIRA_URL", credentials["server"])
@@ -44,7 +46,7 @@ class JiraProvider(BaseProvider):
             update_config("JIRA_API_KEY", credentials["api_token"])
 
         if self.authenticate():
-            click.echo("Jira has been successfully configured.")
+            logger.info("Jira has been successfully configured.")
 
     def authenticate(self) -> bool:
         config = get_config()
@@ -55,14 +57,14 @@ class JiraProvider(BaseProvider):
                 timeout=25,
             )
             server_info = self.jira_client.server_info()
-            click.echo(f"Connected to Jira server version: {server_info['version']}")
+            logger.info(f"Connected to Jira server version: {server_info['version']}")
             return True
         except jira.JIRAError as e:
-            click.echo(f"Failed to authenticate with Jira: {e}", err=True)
+            logger.error(f"Failed to authenticate with Jira: {e}")
             return False
         except Exception as e:
             # Catch timeout and other connection errors
-            click.echo(f"Failed to connect to Jira: {e}", err=True)
+            logger.error(f"Failed to connect to Jira: {e}")
             return False
 
     def fetch_items(self, params: FetchParams) -> Generator[WorkItem, None, None]:
@@ -105,7 +107,7 @@ class JiraProvider(BaseProvider):
 
         jql_query = " AND ".join(jql_parts)
 
-        click.echo(f"JQL Query: {jql_query}")
+        logger.debug(f"JQL Query: {jql_query}")
 
         # Fetch issues with pagination
         start_at = 0
@@ -136,10 +138,10 @@ class JiraProvider(BaseProvider):
                 start_at += max_results
 
             except jira.JIRAError as e:
-                click.echo(f"Error fetching Jira issues: {e}", err=True)
+                logger.error(f"Error fetching Jira issues: {e}")
                 break
 
-        click.echo(f"Fetched {total_fetched} issues from Jira")
+        logger.info(f"Fetched {total_fetched} issues from Jira")
 
     def _convert_jira_issue_to_work_item(self, issue) -> WorkItem:
         """
