@@ -124,7 +124,7 @@ def sync(start_date: datetime | None, end_date: datetime | None, user: str | Non
 
     if not authenticated_providers:
         click.echo(
-            "No authenticated integrations found. Please run 'init' command first.",
+            "No authenticated integrations found. Please run 'connect' command first.",
             err=True,
         )
         return
@@ -179,7 +179,7 @@ def show_config():
 
     if not config_service.file_exists():
         click.echo(
-            "No configuration file found. Please run 'init' command first.", err=True
+            "No configuration file found. Please run 'connect' command first.", err=True
         )
         return
 
@@ -248,8 +248,6 @@ def report():
 
     # Use ReportService to generate the report
     report_service = ReportService()
-
-    click.echo("Generating summaries for each work item...\n")
 
     result = report_service.generate_report()
 
@@ -353,7 +351,7 @@ def disconnect(data_sources: bool, services: bool, confirm: bool):
     click.echo(
         f"\nDisconnect complete! Removed {result.total_disconnected} integration(s)."
     )
-    click.echo("Run 'init' to reconnect any integrations.")
+    click.echo("Run 'connect' to reconnect any integrations.")
 
 
 if __name__ == "__main__":

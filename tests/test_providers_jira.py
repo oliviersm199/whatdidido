@@ -80,6 +80,7 @@ class TestJiraProvider:
         mock_jira_class.assert_called_once_with(
             server="https://test.atlassian.net",
             basic_auth=("test@example.com", "test-api-key"),
+            timeout=25,
         )
 
     @patch("src.providers.jira.get_config")

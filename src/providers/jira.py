@@ -52,12 +52,17 @@ class JiraProvider(BaseProvider):
             self.jira_client = jira.JIRA(
                 server=config.jira.jira_url,
                 basic_auth=(config.jira.jira_username, config.jira.jira_api_key),
+                timeout=25,
             )
             server_info = self.jira_client.server_info()
             click.echo(f"Connected to Jira server version: {server_info['version']}")
             return True
         except jira.JIRAError as e:
             click.echo(f"Failed to authenticate with Jira: {e}", err=True)
+            return False
+        except Exception as e:
+            # Catch timeout and other connection errors
+            click.echo(f"Failed to connect to Jira: {e}", err=True)
             return False
 
     def fetch_items(self, params: FetchParams) -> Generator[WorkItem, None, None]:

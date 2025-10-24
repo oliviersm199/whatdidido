@@ -401,9 +401,15 @@ class TestOverallSummarizer:
 
     @patch("src.summarize.get_config")
     @patch("src.summarize.OpenAI")
+    @patch("src.summarize.Progress")
     @patch("src.summarize.Console")
     def test_generate_and_save_summary(
-        self, mock_console_class, mock_openai_class, mock_get_config, tmp_path
+        self,
+        mock_console_class,
+        mock_progress_class,
+        mock_openai_class,
+        mock_get_config,
+        tmp_path,
     ):
         """Test generating and saving overall summary."""
         mock_config = Mock()
@@ -424,6 +430,12 @@ class TestOverallSummarizer:
         # Mock console
         mock_console = Mock()
         mock_console_class.return_value = mock_console
+
+        # Mock progress
+        mock_progress = Mock()
+        mock_progress.__enter__ = Mock(return_value=mock_progress)
+        mock_progress.__exit__ = Mock(return_value=False)
+        mock_progress_class.return_value = mock_progress
 
         markdown_file = tmp_path / "output.md"
         summarizer = OverallSummarizer(markdown_file=markdown_file)
@@ -452,6 +464,11 @@ class TestOverallSummarizer:
 
         # Verify console was used
         mock_console.print.assert_called_once()
+
+        # Verify progress was shown
+        mock_progress.add_task.assert_called_once_with(
+            "Generating final summary from all work items...", total=None
+        )
 
     @patch("src.summarize.get_config")
     @patch("src.summarize.OpenAI")

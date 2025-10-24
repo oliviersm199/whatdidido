@@ -8,6 +8,7 @@ Summarizes work items through a 3 step flow:
 
 import json
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
@@ -16,6 +17,13 @@ from openai import OpenAI
 from pydantic import BaseModel, Field
 from rich.console import Console
 from rich.markdown import Markdown
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    BarColumn,
+    TaskProgressColumn,
+)
 
 from config import get_config
 from models.work_item import WorkItem
@@ -166,9 +174,32 @@ Raw Provider Data:
 
         return response.choices[0].message.content.strip()
 
+    def _summarize_single_work_item(self, work_item: WorkItem) -> WorkItemSummary:
+        """
+        Generate a summary for a single work item.
+
+        Args:
+            work_item: The work item to summarize
+
+        Returns:
+            WorkItemSummary with the generated summary
+        """
+        summary_text = self._generate_summary(work_item)
+
+        return WorkItemSummary(
+            work_item_id=work_item.id,
+            title=work_item.title,
+            summary=summary_text,
+            provider=work_item.provider,
+            created_at=work_item.created_at,
+            updated_at=work_item.updated_at,
+            summarized_at=datetime.now().isoformat(),
+        )
+
     def summarize_work_items(self, work_items: list[WorkItem]) -> list[WorkItemSummary]:
         """
         Generate summaries for a list of work items and persist them.
+        Uses parallel processing with a ThreadPool (max 4 workers) for improved performance.
 
         Args:
             work_items: List of work items to summarize
@@ -182,20 +213,70 @@ Raw Provider Data:
         """
         summaries: list[WorkItemSummary] = []
 
-        for work_item in work_items:
-            print(f"Summarizing {work_item.id}: {work_item.title}...", file=sys.stderr)
-            summary_text = self._generate_summary(work_item)
+        # Track which work items are currently being processed
+        in_progress: set[str] = set()
 
-            summary = WorkItemSummary(
-                work_item_id=work_item.id,
-                title=work_item.title,
-                summary=summary_text,
-                provider=work_item.provider,
-                created_at=work_item.created_at,
-                updated_at=work_item.updated_at,
-                summarized_at=datetime.now().isoformat(),
-            )
-            summaries.append(summary)
+        # Create a progress bar
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+        ) as progress:
+            task = progress.add_task("Summarizing work items...", total=len(work_items))
+
+            # Use ThreadPoolExecutor with max 4 workers for parallel summarization
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                # Submit all summarization tasks
+                future_to_work_item = {
+                    executor.submit(
+                        self._summarize_single_work_item, work_item
+                    ): work_item
+                    for work_item in work_items
+                }
+
+                # Track which futures are running
+                for work_item in work_items[:4]:  # Initial batch
+                    in_progress.add(f"{work_item.id}: {work_item.title}")
+
+                # Collect results as they complete
+                completed_count = 0
+                for future in as_completed(future_to_work_item):
+                    try:
+                        summary = future.result()
+                        summaries.append(summary)
+                        completed_count += 1
+
+                        # Remove completed item from in_progress
+                        completed_work_item = future_to_work_item[future]
+                        completed_id = (
+                            f"{completed_work_item.id}: {completed_work_item.title}"
+                        )
+                        in_progress.discard(completed_id)
+
+                        # Add next item to in_progress if there are more
+                        if completed_count + len(in_progress) < len(work_items):
+                            next_idx = completed_count + len(in_progress) - 1
+                            if next_idx < len(work_items):
+                                next_item = work_items[next_idx]
+                                in_progress.add(f"{next_item.id}: {next_item.title}")
+
+                        # Update progress description with current items
+                        description = (
+                            f"Summarizing: {', '.join(sorted(list(in_progress)[:4]))}"
+                        )
+                        if len(in_progress) > 4:
+                            description += "..."
+                        progress.update(task, description=description, advance=1)
+
+                    except Exception as e:
+                        work_item = future_to_work_item[future]
+                        progress.stop()
+                        print(
+                            f"Error summarizing {work_item.id}: {str(e)}",
+                            file=sys.stderr,
+                        )
+                        raise
 
         # Persist all summaries
         self._persist_summaries(summaries)
@@ -281,7 +362,17 @@ class OverallSummarizer:
             overall = OverallSummarizer()
             markdown = overall.generate_and_save_summary(summaries)
         """
-        markdown_summary = self._generate_overall_summary(summaries)
+        console = Console()
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            progress.add_task(
+                "Generating final summary from all work items...", total=None
+            )
+            markdown_summary = self._generate_overall_summary(summaries)
 
         # Save to file
         self.markdown_file.parent.mkdir(parents=True, exist_ok=True)
@@ -289,7 +380,6 @@ class OverallSummarizer:
             f.write(markdown_summary)
 
         # Print to stdout with rich markdown rendering
-        console = Console()
         md = Markdown(markdown_summary)
         console.print(md)
 

@@ -44,8 +44,9 @@ def get_config() -> Config:
         CONFIG_DIR.mkdir(parents=True)
     if not CONFIG_FILE.exists():
         CONFIG_FILE.touch()
-    else:
-        load_dotenv(CONFIG_FILE)
+
+    # Always reload the config file to get latest values
+    load_dotenv(CONFIG_FILE, override=True)
 
     jira_config = JiraConfig(
         jira_url=os.getenv("JIRA_URL", ""),
