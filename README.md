@@ -7,6 +7,8 @@
 
 `whatdidido` is a command-line tool that syncs your work items from ticketing systems (Jira, Linear) and generates intelligent summaries using OpenAI. Perfect for status reports, performance reviews, and keeping track of what you've accomplished.
 
+![Example Output](images/exampleOutput.png)
+
 ## Installation
 
 Install via pip:
@@ -46,6 +48,29 @@ whatdidido report
 ```
 
 Creates an AI-powered summary of your activities in `whatdidido.md`.
+
+## Cost Considerations
+
+When using the AI-powered summarization feature, OpenAI API usage will incur costs. Here's what to expect:
+
+**Example Usage Cost:**
+
+- **19 Jira tickets analyzed**
+- **API Usage:** ~25,000 input tokens, ~3,079 output tokens
+- **Approximate Cost:** $0.06 USD
+
+Actual costs will vary based on:
+
+- Number of work items synced
+- Complexity and length of ticket descriptions
+- OpenAI model used (configurable)
+- Frequency of report generation
+
+**Cost Management Tips:**
+
+- Use date ranges to limit the number of items synced
+- Sync only when you need to generate reports
+- Monitor your OpenAI API usage at [platform.openai.com](https://platform.openai.com)
 
 ## Usage Examples
 
