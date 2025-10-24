@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "whatdidido"
-version = "0.1.2"
+version = "0.1.3"
 description = "Track your work across Jira and Linear. Generate AI-powered summaries of your activities."
 readme = "README.md"
 requires-python = ">=3.10"
