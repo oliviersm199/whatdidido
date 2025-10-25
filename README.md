@@ -13,12 +13,7 @@
 
 ## Installation
 
-### Homebrew (macOS/Linux)
-
-```bash
-brew tap oliviersm199/whatdidido
-brew install whatdidido
-```
+Prequisite is Python 3.10 and above installed
 
 ### pip
 
