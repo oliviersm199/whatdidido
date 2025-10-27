@@ -15,9 +15,10 @@
 
 Prequisite is [Python 3.10](https://www.python.org/downloads/) and above installed
 
-### pip
+### pipx
 
 ```bash
+brew install pipx
 pip install whatdidido
 ```
 
