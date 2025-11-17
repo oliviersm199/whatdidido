@@ -13,7 +13,7 @@
 
 ## Installation
 
-Prequisite is [Python 3.10](https://www.python.org/downloads/) and above installed
+Prereq is [Python 3.10](https://www.python.org/downloads/) and above installed
 
 ### pipx
 
