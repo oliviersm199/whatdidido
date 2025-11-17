@@ -30,7 +30,7 @@ pip install whatdidido
 whatdidido connect
 ```
 
-This interactive wizard will guide you through:
+This interactive wizard will guide you through step by step:
 
 - Selecting which integrations to connect (Jira, Linear)
 - Entering API credentials
